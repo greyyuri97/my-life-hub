@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Life Hub · Hoenn</title>
+<meta name="theme-color" content="#059669">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --emerald:#10B981; --emerald-d:#059669; --emerald-soft:rgba(16,185,129,.12);
+  --blue:#0284C7; --blue-soft:rgba(2,132,199,.12);
+  --red:#F87171; --red-d:#DC2626; --red-soft:rgba(248,113,113,.14);
+  --amber:#F59E0B; --amber-soft:rgba(245,158,11,.14);
+  --text:#0F172A; --muted:#64748B;
+  --card:rgba(255,255,255,.78); --card-solid:#FFFFFF; --border:rgba(15,23,42,.08);
+  --input:#F8FAFC; --track:#E2E8F0;
+  --shadow:0 10px 30px rgba(2,132,199,.12),0 2px 6px rgba(15,23,42,.06);
+  --bg1:#7DD3FC; --bg2:#BAE6FD; --bg3:#D1FAE5; --bg4:#A7F3D0;
+  --wave1:rgba(2,132,199,.20); --wave2:rgba(16,185,129,.24);
+  --radius:20px;
+}
+[data-theme="dark"]{
+  --text:#E2E8F0; --muted:#94A3B8;
+  --card:rgba(15,23,42,.72); --card-solid:#0F172A; --border:rgba(148,163,184,.16);
+  --input:rgba(30,41,59,.85); --track:#1E293B;
+  --shadow:0 10px 30px rgba(0,0,0,.40);
+  --bg1:#020617; --bg2:#0C1E3A; --bg3:#0B3B3A; --bg4:#064E3B;
+  --wave1:rgba(2,132,199,.28); --wave2:rgba(16,185,129,.22);
+  --emerald-soft:rgba(16,185,129,.18); --blue-soft:rgba(2,132,199,.22);
+  --red-soft:rgba(248,113,113,.18); --amber-soft:rgba(245,158,11,.18);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:'Plus Jakarta Sans',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  color:var(--text); min-height:100vh; line-height:1.5;
+  background:linear-gradient(180deg,var(--bg1) 0%,var(--bg2) 30%,var(--bg3) 70%,var(--bg4) 100%) fixed;
+  transition:background .4s,color .3s;
+}
+/* Hoenn scenery layer */
+.scenery{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.scenery .sun{position:absolute;top:-80px;right:-60px;width:280px;height:280px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,255,255,.55),rgba(255,255,255,0) 70%)}
+[data-theme="dark"] .scenery .sun{background:radial-gradient(circle,rgba(186,230,253,.18),rgba(186,230,253,0) 70%)}
+.scenery svg{position:absolute;left:0;bottom:0;width:100%;height:38vh;min-height:220px}
+.scenery .leaf{position:absolute;inset:0;opacity:.05;
+  background-image:radial-gradient(circle at 20% 30%,var(--emerald-d) 2px,transparent 3px),radial-gradient(circle at 70% 60%,var(--blue) 2px,transparent 3px);
+  background-size:46px 46px,64px 64px}
+
+.wrap{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:0 16px 32px}
+
+/* Top bar */
+.topbar{position:sticky;top:0;z-index:20;padding:12px 0 10px;margin-bottom:8px}
+.topbar-inner{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  background:var(--card);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border:1px solid var(--border);border-radius:16px;padding:10px 14px;box-shadow:var(--shadow)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.05rem;letter-spacing:-.01em}
+.brand .logo{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:18px;
+  background:linear-gradient(135deg,var(--emerald),var(--blue));color:#fff}
+.brand small{display:block;font-size:.7rem;font-weight:600;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.top-actions{display:flex;gap:8px}
+.icon-btn{width:40px;height:40px;border-radius:12px;border:1px solid var(--border);background:var(--input);
+  color:var(--text);font-size:18px;cursor:pointer;display:grid;place-items:center;transition:transform .15s,background .2s}
+.icon-btn:hover{transform:translateY(-1px);background:var(--emerald-soft)}
+
+/* Cards */
+.card{background:var(--card);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px}
+
+/* Hero */
+.hero{margin-bottom:18px;overflow:hidden;position:relative}
+.hero::after{content:"";position:absolute;right:-60px;top:-60px;width:220px;height:220px;border-radius:50%;
+  background:radial-gradient(circle,var(--emerald-soft),transparent 70%);pointer-events:none}
+.hero h1{font-size:clamp(1.3rem,3.5vw,1.75rem);font-weight:800;letter-spacing:-.02em}
+.hero .date{color:var(--muted);font-weight:500;margin-top:2px}
+.team-label{margin-top:18px;font-size:.72rem;font-weight:700;letter-spacing:.12em;color:var(--emerald-d);text-transform:uppercase}
+[data-theme="dark"] .team-label{color:var(--emerald)}
+.team{display:flex;gap:12px;overflow-x:auto;padding:10px 2px 6px;scrollbar-width:none}
+.team::-webkit-scrollbar{display:none}
+.mon{flex:0 0 auto;width:96px;text-align:center;cursor:default}
+.mon .disc{width:84px;height:84px;margin:0 auto;border-radius:50%;display:grid;place-items:center;position:relative;
+  background:radial-gradient(circle at 50% 70%,var(--emerald-soft),transparent 70%)}
+.mon img{width:78px;height:78px;object-fit:contain;filter:drop-shadow(0 6px 8px rgba(0,0,0,.18));
+  animation:float 3.6s ease-in-out infinite}
+.mon:nth-child(2) img{animation-delay:.4s}.mon:nth-child(3) img{animation-delay:.8s}
+.mon:nth-child(4) img{animation-delay:1.2s}.mon:nth-child(5) img{animation-delay:1.6s}.mon:nth-child(6) img{animation-delay:2s}
+.mon:hover img{transform:scale(1.08)}
+.mon .fallback{width:62px;height:62px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:800;font-size:1.3rem}
+.mon .name{font-size:.75rem;font-weight:700;margin-top:4px;color:var(--muted)}
+@keyframes float{0%,100%{translate:0 0}50%{translate:0 -6px}}
+
+.stats{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;font-weight:600;font-size:.88rem;
+  background:var(--input);border:1px solid var(--border)}
+.chip b{font-weight:800}
+.chip.green{background:var(--emerald-soft);color:var(--emerald-d)}
+.chip.blue{background:var(--blue-soft);color:var(--blue)}
+.chip.amber{background:var(--amber-soft);color:#B45309}
+[data-theme="dark"] .chip.green{color:#6EE7B7}[data-theme="dark"] .chip.blue{color:#7DD3FC}[data-theme="dark"] .chip.amber{color:#FCD34D}
+
+/* Tabs */
+.tabs{display:flex;gap:8px;overflow-x:auto;padding:4px;margin-bottom:14px;scrollbar-width:none;
+  background:var(--card);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border:1px solid var(--border);border-radius:999px;box-shadow:var(--shadow);width:max-content;max-width:100%}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:0 0 auto;border:0;background:transparent;color:var(--muted);font:inherit;font-weight:700;font-size:.92rem;
+  padding:10px 18px;border-radius:999px;cursor:pointer;transition:all .2s;white-space:nowrap}
+.tab:hover:not(:disabled){color:var(--text)}
+.tab.active{background:linear-gradient(135deg,var(--emerald),var(--emerald-d));color:#fff;box-shadow:0 6px 16px rgba(5,150,105,.35)}
+.tab:disabled{opacity:.5;cursor:not-allowed;font-weight:600}
+
+.section-title{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.section-title h2{font-size:1.2rem;font-weight:800;letter-spacing:-.01em}
+.section-title p{color:var(--muted);font-size:.88rem}
+
+/* Forms */
+label.lbl{display:block;font-size:.72rem;font-weight:700;letter-spacing:.08em;color:var(--muted);margin-bottom:6px;text-transform:uppercase}
+input[type=text],input[type=date],input[type=number]{width:100%;font:inherit;font-size:1rem;color:var(--text);
+  background:var(--input);border:1.5px solid var(--border);border-radius:12px;padding:11px 14px;outline:none;transition:border .2s,box-shadow .2s}
+input:focus{border-color:var(--emerald);box-shadow:0 0 0 4px var(--emerald-soft)}
+[data-theme="dark"] input{color-scheme:dark}
+.add-grid{display:grid;grid-template-columns:200px 130px 1fr auto;gap:12px;align-items:end}
+.day-chip{height:46px;display:flex;align-items:center;justify-content:center;border-radius:12px;font-weight:700;
+  background:var(--blue-soft);color:var(--blue);border:1.5px dashed rgba(2,132,199,.35)}
+[data-theme="dark"] .day-chip{color:#7DD3FC}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;font:inherit;font-weight:700;font-size:.9rem;
+  border:0;border-radius:12px;padding:11px 18px;cursor:pointer;transition:transform .12s,box-shadow .2s,background .2s,opacity .2s;white-space:nowrap}
+.btn:active:not(:disabled){transform:scale(.97)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-primary{background:linear-gradient(135deg,var(--emerald),var(--emerald-d));color:#fff;box-shadow:0 6px 16px rgba(5,150,105,.3)}
+.btn-primary:hover:not(:disabled){box-shadow:0 8px 22px rgba(5,150,105,.42)}
+.btn-blue{background:var(--blue);color:#fff}
+.btn-ghost{background:var(--input);color:var(--text);border:1px solid var(--border)}
+.btn-ghost:hover:not(:disabled){background:var(--emerald-soft)}
+.btn-done{background:var(--emerald-soft);color:var(--emerald-d)}
+.btn-done:hover{background:var(--emerald);color:#fff}
+.btn-fail{background:var(--red-soft);color:var(--red-d)}
+.btn-fail:hover{background:var(--red);color:#fff}
+[data-theme="dark"] .btn-done{color:#6EE7B7}[data-theme="dark"] .btn-fail{color:#FCA5A5}
+.btn-danger{background:var(--red-d);color:#fff}
+.btn-sm{padding:8px 12px;font-size:.82rem;border-radius:10px}
+.btn-icon{width:36px;height:36px;padding:0;border-radius:10px;background:transparent;color:var(--muted);font-size:1rem}
+.btn-icon:hover{background:var(--input);color:var(--text)}
+.btn-icon.del:hover{background:var(--red-soft);color:var(--red-d)}
+
+/* Filters */
+.filters{display:flex;gap:6px;flex-wrap:wrap;margin:18px 0 12px}
+.filter{border:1px solid var(--border);background:var(--input);color:var(--muted);font:inherit;font-weight:700;font-size:.85rem;
+  padding:7px 14px;border-radius:999px;cursor:pointer;transition:all .2s}
+.filter .n{display:inline-block;min-width:22px;padding:0 6px;margin-left:6px;border-radius:999px;background:var(--track);font-size:.75rem;color:var(--text)}
+.filter.active{background:var(--text);color:var(--card-solid);border-color:var(--text)}
+.filter.active .n{background:rgba(255,255,255,.2);color:inherit}
+[data-theme="dark"] .filter.active .n{background:rgba(15,23,42,.2)}
+
+/* Task list */
+.task-list{display:flex;flex-direction:column;gap:10px}
+.task{display:grid;grid-template-columns:1fr auto;gap:10px 14px;align-items:center;padding:14px 16px;border-radius:16px;
+  background:var(--card-solid);border:1px solid var(--border);border-left:4px solid var(--amber);transition:transform .15s,box-shadow .2s;
+  animation:pop .25s ease}
+.task:hover{box-shadow:0 6px 18px rgba(15,23,42,.08)}
+.task.s-done{border-left-color:var(--emerald)}
+.task.s-fail{border-left-color:var(--red)}
+.task.is-today{box-shadow:0 0 0 2px var(--blue-soft)}
+.task-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:.8rem;font-weight:600;color:var(--muted)}
+.today-tag{font-size:.68rem;font-weight:800;padding:2px 8px;border-radius:999px;background:var(--blue);color:#fff;letter-spacing:.03em}
+.task-text{font-size:1rem;font-weight:600;margin-top:3px;word-break:break-word}
+.task.s-done .task-text{text-decoration:line-through;text-decoration-color:var(--emerald);color:var(--muted)}
+.task.s-fail .task-text{color:var(--muted)}
+.badge{font-size:.7rem;font-weight:800;letter-spacing:.06em;padding:5px 10px;border-radius:999px;text-transform:uppercase;justify-self:end}
+.badge.pending{background:var(--amber-soft);color:#B45309}
+.badge.done{background:var(--emerald-soft);color:var(--emerald-d)}
+.badge.fail{background:var(--red-soft);color:var(--red-d)}
+[data-theme="dark"] .badge.pending{color:#FCD34D}[data-theme="dark"] .badge.done{color:#6EE7B7}[data-theme="dark"] .badge.fail{color:#FCA5A5}
+.task-actions{grid-column:1/-1;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.task-actions .spacer{flex:1}
+@keyframes pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+.empty{text-align:center;padding:30px 10px;color:var(--muted)}
+.empty img{width:110px;height:110px;object-fit:contain;animation:float 3.6s ease-in-out infinite;opacity:.95}
+.empty p{font-weight:600;margin-top:6px}
+
+/* Qadha */
+.summary{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;margin-bottom:16px;
+  background:linear-gradient(135deg,var(--emerald-soft),var(--blue-soft))}
+.summary .big{font-size:clamp(1.8rem,5vw,2.4rem);font-weight:800;letter-spacing:-.03em;line-height:1.1}
+.summary .big span{font-size:1rem;color:var(--muted);font-weight:700}
+.summary .sub{color:var(--muted);font-weight:600;font-size:.88rem;margin-top:8px}
+.summary .acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.summary .bar{grid-column:1/-1}
+.bar{height:12px;border-radius:999px;background:var(--track);overflow:hidden}
+.bar > i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--emerald),#34D399,var(--blue));
+  transition:width .5s cubic-bezier(.2,.8,.2,1)}
+.prayer-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.prayer{background:var(--card-solid);border:1px solid var(--border);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:12px;
+  position:relative;overflow:hidden}
+.prayer-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.prayer-name{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:.06em}
+.prayer-name .ic{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;font-size:1.2rem;background:var(--emerald-soft)}
+.prayer .count{font-size:1.9rem;font-weight:800;letter-spacing:-.02em;line-height:1}
+.prayer .count small{font-size:.9rem;color:var(--muted);font-weight:700}
+.prayer .lbl2{font-size:.72rem;font-weight:700;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;margin-bottom:4px}
+.prayer .pct{font-size:.78rem;color:var(--muted);font-weight:600;margin-top:6px}
+.prayer .row{display:flex;gap:8px}
+.prayer .row .btn-primary{flex:1}
+.prayer.complete{border-color:rgba(16,185,129,.45)}
+.prayer.complete::before{content:"Selesai 🎉";position:absolute;top:14px;right:52px;font-size:.7rem;font-weight:800;
+  padding:4px 10px;border-radius:999px;background:var(--emerald);color:#fff}
+.prayer.unset .count{color:var(--muted)}
+.bump{animation:bump .35s ease}
+@keyframes bump{0%{transform:scale(1)}40%{transform:scale(1.18)}100%{transform:scale(1)}}
+
+/* Footer */
+footer{margin-top:22px}
+footer .card{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 18px}
+footer .left{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+footer .muted{color:var(--muted);font-size:.8rem;font-weight:600}
+
+/* Modal */
+.overlay{position:fixed;inset:0;z-index:50;background:rgba(2,6,23,.45);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+  display:none;align-items:center;justify-content:center;padding:16px}
+.overlay.show{display:flex;animation:fade .2s ease}
+.modal{width:100%;max-width:480px;max-height:90vh;overflow:auto;background:var(--card-solid);border:1px solid var(--border);
+  border-radius:22px;box-shadow:0 30px 60px rgba(0,0,0,.3);padding:22px;animation:rise .25s cubic-bezier(.2,.8,.2,1)}
+.modal h3{font-size:1.15rem;font-weight:800;margin-bottom:6px}
+.modal .desc{color:var(--muted);font-size:.9rem;margin-bottom:14px}
+.modal .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;flex-wrap:wrap}
+.modal .field{margin-bottom:12px}
+.modal .err{color:var(--red-d);font-size:.85rem;font-weight:600;margin-top:8px;min-height:1em}
+.setup-row{display:grid;grid-template-columns:110px 1fr 1fr;gap:10px;align-items:end;padding:10px 0;border-bottom:1px solid var(--border)}
+.setup-row:last-child{border-bottom:0}
+.setup-row .pn{font-weight:800;padding-bottom:12px}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes rise{from{opacity:0;transform:translateY(14px) scale(.98)}to{opacity:1;transform:none}}
+
+/* Toast */
+.toasts{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:60;display:flex;flex-direction:column;gap:8px;
+  width:min(92vw,420px);pointer-events:none}
+.toast{pointer-events:auto;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-radius:14px;
+  background:#0F172A;color:#F8FAFC;font-weight:600;font-size:.9rem;box-shadow:0 12px 30px rgba(0,0,0,.3);animation:rise .25s ease}
+[data-theme="dark"] .toast{background:#F8FAFC;color:#0F172A}
+.toast button{border:0;background:var(--emerald);color:#fff;font:inherit;font-weight:800;font-size:.8rem;padding:6px 12px;border-radius:8px;cursor:pointer}
+.toast.out{opacity:0;transform:translateY(8px);transition:all .25s}
+
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+@media (max-width:760px){
+  .add-grid{grid-template-columns:1fr 1fr}
+  .add-grid .item-field{grid-column:1/-1}
+  .add-grid .btn{grid-column:1/-1}
+  .summary{grid-template-columns:1fr}
+  .summary .acts{justify-content:flex-start}
+  .tabs{width:100%}
+}
+@media (max-width:420px){
+  .wrap{padding:0 12px 28px}
+  .card{padding:16px}
+  .brand small{display:none}
+  .setup-row{grid-template-columns:1fr 1fr}
+  .setup-row .pn{grid-column:1/-1;padding-bottom:0}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="scenery" aria-hidden="true">
+  <div class="sun"></div>
+  <div class="leaf"></div>
+  <svg viewBox="0 0 1440 320" preserveAspectRatio="none">
+    <path fill="var(--wave1)" d="M0,192L60,186.7C120,181,240,171,360,181.3C480,192,600,224,720,218.7C840,213,960,171,1080,154.7C1200,139,1320,149,1380,154.7L1440,160L1440,320L0,320Z"/>
+    <path fill="var(--wave2)" d="M0,256L80,245.3C160,235,320,213,480,218.7C640,224,800,256,960,261.3C1120,267,1280,245,1360,234.7L1440,224L1440,320L0,320Z"/>
+  </svg>
+</div>
+
+<div class="wrap">
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="logo">🌿</div>
+        <div>Life Hub<small>Hoenn Edition</small></div>
+      </div>
+      <div class="top-actions">
+        <button class="icon-btn" id="themeBtn" aria-label="Tukar tema" title="Tukar tema">🌙</button>
+        <button class="icon-btn" id="settingsBtn" aria-label="Tetapan" title="Tetapan">⚙️</button>
+      </div>
+    </div>
+  </header>
+
+  <section class="card hero">
+    <h1 id="greeting">Selamat datang! 👋</h1>
+    <div class="date" id="todayLabel"></div>
+    <div class="team-label">My Gen 3 Partner Team</div>
+    <div class="team" id="team"></div>
+    <div class="stats" id="stats"></div>
+  </section>
+
+  <nav class="tabs" id="tabs" role="tablist"></nav>
+  <main class="card" id="section"></main>
+
+  <footer>
+    <div class="card">
+      <div class="left">
+        <span style="font-weight:800">💾</span>
+        <button class="btn btn-ghost btn-sm" data-action="export">Export Data (.JSON)</button>
+        <button class="btn btn-ghost btn-sm" data-action="import">Import Data</button>
+      </div>
+      <span class="muted">Life Hub v1.0 · Data disimpan dalam peranti ini</span>
+    </div>
+  </footer>
+</div>
+
+<input type="file" id="importFile" accept="application/json,.json" class="sr-only">
+<div class="overlay" id="overlay" role="dialog" aria-modal="true"><div class="modal" id="modal"></div></div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script>
+(() => {
+'use strict';
+
+/* ================= CONSTANTS ================= */
+const STORAGE_KEY = 'lifehub_v1';
+const HARI = ['Ahad','Isnin','Selasa','Rabu','Khamis','Jumaat','Sabtu'];
+const BULAN = ['Jan','Feb','Mac','Apr','Mei','Jun','Jul','Ogos','Sep','Okt','Nov','Dis'];
+const PRAYERS = [
+  { id:'subuh',   name:'SUBUH',   icon:'🌅' },
+  { id:'zohor',   name:'ZOHOR',   icon:'☀️' },
+  { id:'asar',    name:'ASAR',    icon:'🌤️' },
+  { id:'maghrib', name:'MAGHRIB', icon:'🌇' },
+  { id:'isyak',   name:'ISYAK',   icon:'🌙' }
+];
+const SPRITE = id => `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`;
+const SPRITE_FALLBACK = id => `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;
+const TEAM = [
+  { id:384, name:'Rayquaza',  color:'#059669' },
+  { id:254, name:'Sceptile',  color:'#16A34A' },
+  { id:257, name:'Blaziken',  color:'#EA580C' },
+  { id:260, name:'Swampert',  color:'#0284C7' },
+  { id:282, name:'Gardevoir', color:'#22C55E' },
+  { id:376, name:'Metagross', color:'#475569' }
+];
+const HISTORY_MAX = 20;
+
+/* ================= HELPERS ================= */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+const pad = n => String(n).padStart(2,'0');
+const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+const parseDate = s => { const [y,m,d] = String(s).split('-').map(Number); return new Date(y, (m||1)-1, d||1); };
+const validDate = s => /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(parseDate(s));
+const dayName = s => validDate(s) ? HARI[parseDate(s).getDay()] : '—';
+const fmtDate = s => { if (!validDate(s)) return '—'; const d = parseDate(s); return `${d.getDate()} ${BULAN[d.getMonth()]} ${d.getFullYear()}`; };
+const toInt = v => { const n = parseInt(String(v).trim(), 10); return Number.isFinite(n) ? n : NaN; };
+const clone = o => JSON.parse(JSON.stringify(o));
+
+/* ================= STATE ================= */
+function defaultState(){
+  const qadha = {};
+  PRAYERS.forEach(p => qadha[p.id] = { initial:0, remaining:0 });
+  return {
+    version: 1,
+    tasks: [],
+    qadha,
+    history: [],
+    settings: { theme: matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light', tab:'tasks', filter:'all', qadhaSetupDone:false }
+  };
+}
+function normalize(raw){
+  const base = defaultState();
+  if (!raw || typeof raw !== 'object') return base;
+  const s = base;
+  if (Array.isArray(raw.tasks)) {
+    s.tasks = raw.tasks.filter(t => t && typeof t === 'object').map(t => ({
+      id: t.id ? String(t.id) : uid(),
+      date: validDate(t.date) ? t.date : todayStr(),
+      item: String(t.item ?? '').slice(0, 500),
+      status: ['pending','done','fail'].includes(t.status) ? t.status : 'pending',
+      createdAt: Number(t.createdAt) || Date.now()
+    }));
+  }
+  if (raw.qadha && typeof raw.qadha === 'object') {
+    PRAYERS.forEach(p => {
+      const q = raw.qadha[p.id];
+      if (q) {
+        const ini = Math.max(0, toInt(q.initial) || 0);
+        const rem = Math.max(0, toInt(q.remaining) || 0);
+        s.qadha[p.id] = { initial: Math.max(ini, rem), remaining: rem };
+      }
+    });
+  }
+  if (Array.isArray(raw.history)) s.history = raw.history.slice(-HISTORY_MAX);
+  if (raw.settings && typeof raw.settings === 'object') Object.assign(s.settings, raw.settings);
+  return s;
+}
+function load(){
+  try { return normalize(JSON.parse(localStorage.getItem(STORAGE_KEY))); }
+  catch { return defaultState(); }
+}
+let state = load();
+function save(){
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+  catch { toast('⚠️ Gagal simpan data (storan penuh?)'); }
+}
+
+/* ================= TOAST ================= */
+function toast(msg, action){
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.innerHTML = `<span>${esc(msg)}</span>`;
+  if (action) {
+    const b = document.createElement('button');
+    b.textContent = action.label;
+    b.onclick = () => { action.onClick(); dismiss(); };
+    el.appendChild(b);
+  }
+  const box = $('#toasts');
+  box.appendChild(el);
+  while (box.children.length > 3) box.firstChild.remove();
+  const timer = setTimeout(dismiss, 3800);
+  function dismiss(){ clearTimeout(timer); el.classList.add('out'); setTimeout(() => el.remove(), 250); }
+}
+
+/* ================= MODAL ================= */
+let modalCleanup = null;
+function openModal(html, onMount){
+  $('#modal').innerHTML = html;
+  $('#overlay').classList.add('show');
+  modalCleanup = onMount ? onMount($('#modal')) : null;
+  const first = $('#modal').querySelector('input,button.btn-primary,button');
+  if (first) setTimeout(() => first.focus(), 50);
+}
+function closeModal(){
+  $('#overlay').classList.remove('show');
+  $('#modal').innerHTML = '';
+  if (typeof modalCleanup === 'function') modalCleanup();
+  modalCleanup = null;
+}
+$('#overlay').addEventListener('click', e => { if (e.target.id === 'overlay') closeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#overlay').classList.contains('show')) closeModal(); });
+
+function confirmDialog({ title, message, okLabel='Ya', danger=false }){
+  return new Promise(resolve => {
+    let done = false;
+    const finish = v => { if (!done) { done = true; resolve(v); } };
+    openModal(`
+      <h3>${esc(title)}</h3>
+      <p class="desc">${esc(message)}</p>
+      <div class="actions">
+        <button class="btn btn-ghost" data-m="no">Batal</button>
+        <button class="btn ${danger ? 'btn-danger' : 'btn-primary'}" data-m="yes">${esc(okLabel)}</button>
+      </div>`, m => {
+        m.querySelector('[data-m=no]').onclick = () => { finish(false); closeModal(); };
+        m.querySelector('[data-m=yes]').onclick = () => { finish(true); closeModal(); };
+        return () => finish(false);
+      });
+  });
+}
+
+/* ================= THEME ================= */
+function applyTheme(){
+  document.documentElement.setAttribute('data-theme', state.settings.theme);
+  $('#themeBtn').textContent = state.settings.theme === 'dark' ? '☀️' : '🌙';
+  document.querySelector('meta[name=theme-color]').setAttribute('content', state.settings.theme === 'dark' ? '#020617' : '#059669');
+}
+$('#themeBtn').onclick = () => {
+  state.settings.theme = state.settings.theme === 'dark' ? 'light' : 'dark';
+  save(); applyTheme();
+};
+
+/* ================= HERO ================= */
+function renderTeam(){
+  $('#team').innerHTML = TEAM.map(m => `
+    <div class="mon" title="${m.name}">
+      <div class="disc">
+        <img src="${SPRITE(m.id)}" alt="${m.name}" loading="lazy" data-id="${m.id}" data-color="${m.color}" data-name="${m.name}">
+      </div>
+      <div class="name">${m.name}</div>
+    </div>`).join('');
+  $('#team').querySelectorAll('img').forEach(attachSpriteFallback);
+}
+function attachSpriteFallback(img){
+  img.addEventListener('error', function handler(){
+    if (!img.dataset.tried) { img.dataset.tried = '1'; img.src = SPRITE_FALLBACK(img.dataset.id); return; }
+    img.removeEventListener('error', handler);
+    const f = document.createElement('div');
+    f.className = 'fallback';
+    f.style.background = img.dataset.color || 'var(--emerald)';
+    f.textContent = (img.dataset.name || '?')[0];
+    img.replaceWith(f);
+  });
+}
+function renderHero(){
+  const h = new Date().getHours();
+  const g = h < 12 ? 'Selamat pagi' : h < 14 ? 'Selamat tengah hari' : h < 19 ? 'Selamat petang' : 'Selamat malam';
+  $('#greeting').textContent = `${g}! 👋`;
+  const t = todayStr();
+  $('#todayLabel').textContent = `${dayName(t)}, ${fmtDate(t)}`;
+  const pending = state.tasks.filter(x => x.status === 'pending').length;
+  const doneToday = state.tasks.filter(x => x.status === 'done' && x.date === t).length;
+  const baki = PRAYERS.reduce((a,p) => a + state.qadha[p.id].remaining, 0);
+  $('#stats').innerHTML = `
+    <span class="chip amber">⏳ <b>${pending}</b> tugasan pending</span>
+    <span class="chip green">✅ <b>${doneToday}</b> selesai hari ini</span>
+    <span class="chip blue">🕌 Baki qadha: <b>${baki.toLocaleString('ms-MY')}</b></span>`;
+}
+
+/* ================= MODULE: TASKS ================= */
+const TaskModule = {
+  id:'tasks', label:'Tugasan Harian', icon:'📋',
+  mount(el){
+    const t = todayStr();
+    el.innerHTML = `
+      <div class="section-title">
+        <div><h2>📋 Tugasan Harian</h2><p>Rekod tugasan harian & tandakan status.</p></div>
+      </div>
+      <form id="taskForm" class="add-grid" autocomplete="off">
+        <div><label class="lbl" for="taskDate">Tarikh</label><input type="date" id="taskDate" value="${t}" required></div>
+        <div><label class="lbl">Hari</label><div class="day-chip" id="taskDay">${dayName(t)}</div></div>
+        <div class="item-field"><label class="lbl" for="taskItem">Item</label><input type="text" id="taskItem" placeholder="Apa nak buat hari ini?" maxlength="500"></div>
+        <button class="btn btn-primary" type="submit">＋ Tambah</button>
+      </form>
+      <div class="filters" id="filters"></div>
+      <div class="task-list" id="taskList"></div>`;
+    const dateEl = el.querySelector('#taskDate');
+    dateEl.addEventListener('input', () => { el.querySelector('#taskDay').textContent = dayName(dateEl.value); });
+    el.querySelector('#taskForm').addEventListener('submit', e => {
+      e.preventDefault();
+      const item = el.querySelector('#taskItem').value.trim();
+      const date = dateEl.value;
+      if (!validDate(date)) { toast('Sila pilih tarikh yang sah.'); return; }
+      if (!item) { toast('Sila isi ITEM dahulu.'); el.querySelector('#taskItem').focus(); return; }
+      state.tasks.push({ id:uid(), date, item, status:'pending', createdAt:Date.now() });
+      save();
+      el.querySelector('#taskItem').value = '';
+      el.querySelector('#taskItem').focus();
+      if (state.settings.filter !== 'all' && state.settings.filter !== 'pending') state.settings.filter = 'all';
+      refresh();
+      toast('✅ Tugasan ditambah');
+    });
+    this.update();
+  },
+  update(){
+    const list = $('#taskList'), filtersEl = $('#filters');
+    if (!list) return;
+    const counts = { all: state.tasks.length, pending:0, done:0, fail:0 };
+    state.tasks.forEach(t => counts[t.status]++);
+    const F = [['all','Semua'],['pending','Pending'],['done','Done'],['fail','Unsuccessful']];
+    filtersEl.innerHTML = F.map(([k,l]) =>
+      `<button class="filter ${state.settings.filter===k?'active':''}" data-action="filter" data-f="${k}">${l}<span class="n">${counts[k]}</span></button>`).join('');
+
+    const t = todayStr();
+    const rows = state.tasks
+      .filter(x => state.settings.filter === 'all' || x.status === state.settings.filter)
+      .sort((a,b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
+
+    if (!rows.length) {
+      const msg = state.tasks.length ? 'Tiada tugasan dalam kategori ini.' : 'Tiada tugasan. Rehat sekejap!';
+      list.innerHTML = `<div class="empty"><img src="${SPRITE(258)}" alt="" data-id="258" data-name="Mudkip" data-color="#0284C7"><p>${msg}</p></div>`;
+      const img = list.querySelector('img'); if (img) attachSpriteFallback(img);
+      return;
+    }
+    const badge = { pending:['pending','Pending'], done:['done','Done'], fail:['fail','Unsuccessful'] };
+    list.innerHTML = rows.map(x => {
+      const cls = x.status === 'done' ? 's-done' : x.status === 'fail' ? 's-fail' : '';
+      const [bc, bl] = badge[x.status];
+      const btns = x.status === 'pending'
+        ? `<button class="btn btn-done btn-sm" data-action="status" data-id="${x.id}" data-s="done">✓ Done</button>
+           <button class="btn btn-fail btn-sm" data-action="status" data-id="${x.id}" data-s="fail">✕ Unsuccessful</button>`
+        : `<button class="btn btn-ghost btn-sm" data-action="status" data-id="${x.id}" data-s="pending">↺ Reset</button>`;
+      return `
+        <div class="task ${cls} ${x.date===t?'is-today':''}">
+          <div>
+            <div class="task-meta">${dayName(x.date)} · ${fmtDate(x.date)} ${x.date===t?'<span class="today-tag">HARI INI</span>':''}</div>
+            <div class="task-text">${esc(x.item)}</div>
+          </div>
+          <span class="badge ${bc}">${bl}</span>
+          <div class="task-actions">
+            ${btns}
+            <span class="spacer"></span>
+            <button class="btn btn-icon" data-action="edit-task" data-id="${x.id}" aria-label="Edit" title="Edit">✏️</button>
+            <button class="btn btn-icon del" data-action="del-task" data-id="${x.id}" aria-label="Padam" title="Padam">🗑️</button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+};
+
+function setTaskStatus(id, s){
+  const t = state.tasks.find(x => x.id === id); if (!t) return;
+  t.status = s; save(); refresh();
+  if (s === 'done') toast('🎉 Syabas! Tugasan selesai');
+  else if (s === 'fail') toast('Tak apa, cuba lagi esok 💪');
+}
+async function deleteTask(id){
+  const t = state.tasks.find(x => x.id === id); if (!t) return;
+  const ok = await confirmDialog({ title:'Padam tugasan?', message:`"${t.item}" akan dipadam secara kekal.`, okLabel:'Padam', danger:true });
+  if (!ok) return;
+  const idx = state.tasks.indexOf(t);
+  state.tasks.splice(idx, 1); save(); refresh();
+  toast('🗑️ Tugasan dipadam', { label:'Undo', onClick(){ state.tasks.splice(Math.min(idx, state.tasks.length), 0, t); save(); refresh(); } });
+}
+function editTask(id){
+  const t = state.tasks.find(x => x.id === id); if (!t) return;
+  openModal(`
+    <h3>✏️ Edit Tugasan</h3>
+    <p class="desc">Kemaskini tarikh atau item tugasan.</p>
+    <div class="field" style="display:grid;grid-template-columns:1fr 120px;gap:10px;align-items:end">
+      <div><label class="lbl" for="eDate">Tarikh</label><input type="date" id="eDate" value="${t.date}"></div>
+      <div><label class="lbl">Hari</label><div class="day-chip" id="eDay">${dayName(t.date)}</div></div>
+    </div>
+    <div class="field"><label class="lbl" for="eItem">Item</label><input type="text" id="eItem" value="${esc(t.item)}" maxlength="500"></div>
+    <div class="field"><label class="lbl">Status</label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap" id="eStatus">
+        ${[['pending','Pending'],['done','Done'],['fail','Unsuccessful']].map(([k,l]) =>
+          `<button type="button" class="filter ${t.status===k?'active':''}" data-s="${k}">${l}</button>`).join('')}
+      </div>
+    </div>
+    <div class="err" id="eErr"></div>
+    <div class="actions">
+      <button class="btn btn-ghost" data-m="cancel">Batal</button>
+      <button class="btn btn-primary" data-m="save">Simpan</button>
+    </div>`, m => {
+      let status = t.status;
+      const d = m.querySelector('#eDate');
+      d.addEventListener('input', () => m.querySelector('#eDay').textContent = dayName(d.value));
+      m.querySelectorAll('#eStatus [data-s]').forEach(b => b.onclick = () => {
+        status = b.dataset.s;
+        m.querySelectorAll('#eStatus [data-s]').forEach(x => x.classList.toggle('active', x === b));
+      });
+      const doSave = () => {
+        const item = m.querySelector('#eItem').value.trim();
+        if (!validDate(d.value)) { m.querySelector('#eErr').textContent = 'Tarikh tidak sah.'; return; }
+        if (!item) { m.querySelector('#eErr').textContent = 'Item tidak boleh kosong.'; return; }
+        Object.assign(t, { date:d.value, item, status });
+        save(); closeModal(); refresh(); toast('💾 Tugasan dikemaskini');
+      };
+      m.querySelector('[data-m=cancel]').onclick = closeModal;
+      m.querySelector('[data-m=save]').onclick = doSave;
+      m.querySelector('#eItem').addEventListener('keydown', e => { if (e.key === 'Enter') doSave(); });
+    });
+}
+
+/* ================= MODULE: QADHA ================= */
+let bumpId = null;
+const QadhaModule = {
+  id:'qadha', label:'Rekod Qadha Solat', icon:'🕌',
+  mount(el){
+    el.innerHTML = `
+      <div class="section-title">
+        <div><h2>🕌 Rekod Qadha Solat</h2><p>Jejak baki solat qadha. Sedikit demi sedikit, insyaAllah.</p></div>
+      </div>
+      <div class="card summary" id="qSummary"></div>
+      <div class="prayer-grid" id="qGrid"></div>`;
+    this.update();
+    const allZero = PRAYERS.every(p => state.qadha[p.id].initial === 0);
+    if (allZero && !state.settings.qadhaSetupDone) setTimeout(() => openQadhaSetup(PRAYERS.map(p => p.id), true), 250);
+  },
+  update(){
+    const sum = $('#qSummary'), grid = $('#qGrid');
+    if (!sum) return;
+    const totIni = PRAYERS.reduce((a,p) => a + state.qadha[p.id].initial, 0);
+    const totRem = PRAYERS.reduce((a,p) => a + state.qadha[p.id].remaining, 0);
+    const done = totIni - totRem;
+    const pct = totIni ? Math.round(done / totIni * 100) : 0;
+    const last = state.history[state.history.length - 1];
+    sum.innerHTML = `
+      <div>
+        <div class="lbl" style="font-size:.72rem;font-weight:700;letter-spacing:.08em;color:var(--muted);text-transform:uppercase">Jumlah Baki Qadha</div>
+        <div class="big">${totRem.toLocaleString('ms-MY')} <span>/ ${totIni.toLocaleString('ms-MY')}</span></div>
+      </div>
+      <div class="acts">
+        <button class="btn btn-ghost btn-sm" data-action="undo" ${last ? '' : 'disabled'} title="${last ? esc('Undo: ' + last.label) : 'Tiada tindakan untuk undo'}">↶ Undo${state.history.length ? ` (${state.history.length})` : ''}</button>
+        <button class="btn btn-blue btn-sm" data-action="qadha-set-all">✎ Set Bilangan</button>
+      </div>
+      <div class="bar"><i style="width:${pct}%"></i></div>
+      <div class="sub" style="grid-column:1/-1;margin-top:-4px">${pct}% selesai · ${done.toLocaleString('ms-MY')} telah diganti</div>`;
+
+    grid.innerHTML = PRAYERS.map(p => {
+      const q = state.qadha[p.id];
+      const d = q.initial - q.remaining;
+      const pp = q.initial ? Math.round(d / q.initial * 100) : 0;
+      const unset = q.initial === 0;
+      const complete = !unset && q.remaining === 0;
+      return `
+        <div class="prayer ${complete?'complete':''} ${unset?'unset':''}">
+          <div class="prayer-head">
+            <div class="prayer-name"><span class="ic">${p.icon}</span>${p.name}</div>
+            <button class="btn btn-icon" data-action="qadha-edit" data-p="${p.id}" aria-label="Edit ${p.name}" title="Edit">✏️</button>
+          </div>
+          <div>
+            <div class="lbl2">Baki</div>
+            <div class="count ${bumpId===p.id?'bump':''}">${q.remaining.toLocaleString('ms-MY')} <small>/ ${q.initial.toLocaleString('ms-MY')}</small></div>
+          </div>
+          <div>
+            <div class="bar"><i style="width:${pp}%"></i></div>
+            <div class="pct">${unset ? 'Belum ditetapkan, tekan ✏️ untuk set' : `${pp}% selesai · ${d.toLocaleString('ms-MY')} diganti`}</div>
+          </div>
+          <div class="row">
+            <button class="btn btn-primary" data-action="qadha-minus" data-p="${p.id}" ${q.remaining<=0?'disabled':''}>−1 (Dah Solat)</button>
+            <button class="btn btn-ghost" data-action="qadha-plus" data-p="${p.id}" title="Tambah 1 (terlepas solat)" aria-label="Tambah 1 ${p.name}">+1</button>
+          </div>
+        </div>`;
+    }).join('');
+    bumpId = null;
+  }
+};
+
+function pushHistory(label){
+  state.history.push({ label, qadha: clone(state.qadha), at: Date.now() });
+  if (state.history.length > HISTORY_MAX) state.history.splice(0, state.history.length - HISTORY_MAX);
+}
+function undo(){
+  const h = state.history.pop();
+  if (!h) { toast('Tiada tindakan untuk undo.'); return; }
+  state.qadha = normalize({ qadha: h.qadha }).qadha;
+  save(); refresh(); toast(`↶ Undo: ${h.label}`);
+}
+function qadhaMinus(pid){
+  const q = state.qadha[pid], p = PRAYERS.find(x => x.id === pid);
+  if (!q || q.remaining <= 0) return;
+  pushHistory(`${p.name} −1`);
+  q.remaining -= 1; bumpId = pid; save(); refresh();
+  if (q.remaining === 0) toast(`Alhamdulillah! Qadha ${p.name} selesai 🎉`, { label:'Undo', onClick: undo });
+  else toast(`${p.name} −1 · Baki ${q.remaining}`, { label:'Undo', onClick: undo });
+}
+function qadhaPlus(pid){
+  const q = state.qadha[pid], p = PRAYERS.find(x => x.id === pid);
+  if (!q) return;
+  pushHistory(`${p.name} +1`);
+  q.remaining += 1; q.initial += 1; bumpId = pid; save(); refresh();
+  toast(`${p.name} +1 · Baki ${q.remaining}`, { label:'Undo', onClick: undo });
+}
+function openQadhaSetup(ids, firstTime){
+  const single = ids.length === 1;
+  const title = firstTime ? '🕌 Tetapan Awal Qadha' : single ? `✏️ Edit ${PRAYERS.find(p => p.id === ids[0]).name}` : '✎ Set Bilangan Qadha';
+  openModal(`
+    <h3>${title}</h3>
+    <p class="desc">${firstTime ? 'Masukkan bilangan solat qadha yang perlu diganti untuk setiap waktu. Boleh ubah bila-bila masa.' : 'Bilangan Awal = jumlah asal. Baki = yang masih perlu diganti.'}</p>
+    ${ids.map(id => {
+      const p = PRAYERS.find(x => x.id === id), q = state.qadha[id];
+      return `<div class="setup-row">
+        <div class="pn">${p.icon} ${p.name}</div>
+        <div><label class="lbl" for="ini-${id}">Bilangan Awal</label><input type="number" inputmode="numeric" min="0" max="99999" id="ini-${id}" value="${q.initial}"></div>
+        <div><label class="lbl" for="rem-${id}">Baki</label><input type="number" inputmode="numeric" min="0" max="99999" id="rem-${id}" value="${q.remaining}"></div>
+      </div>`;
+    }).join('')}
+    <div class="err" id="qErr"></div>
+    <div class="actions">
+      <button class="btn btn-ghost" data-m="cancel">${firstTime ? 'Nanti dulu' : 'Batal'}</button>
+      <button class="btn btn-primary" data-m="save">Simpan</button>
+    </div>`, m => {
+      // When the starting count changes and Baki was untouched (equal to old starting count), keep Baki in sync
+      ids.forEach(id => {
+        const ini = m.querySelector(`#ini-${id}`), rem = m.querySelector(`#rem-${id}`);
+        let prev = ini.value;
+        ini.addEventListener('input', () => { if (rem.value === prev) rem.value = ini.value; prev = ini.value; });
+      });
+      m.querySelector('[data-m=cancel]').onclick = () => {
+        if (firstTime) { state.settings.qadhaSetupDone = true; save(); }
+        closeModal();
+      };
+      m.querySelector('[data-m=save]').onclick = () => {
+        const next = {};
+        for (const id of ids) {
+          const name = PRAYERS.find(x => x.id === id).name;
+          const iniRaw = m.querySelector(`#ini-${id}`).value, remRaw = m.querySelector(`#rem-${id}`).value;
+          const ini = iniRaw === '' ? 0 : toInt(iniRaw);
+          const rem = remRaw === '' ? ini : toInt(remRaw);
+          if (isNaN(ini) || isNaN(rem) || ini < 0 || rem < 0 || ini > 99999 || rem > 99999) {
+            m.querySelector('#qErr').textContent = `${name}: masukkan nombor 0 hingga 99999.`; return;
+          }
+          if (rem > ini) { m.querySelector('#qErr').textContent = `${name}: Baki tidak boleh melebihi Bilangan Awal.`; return; }
+          next[id] = { initial: ini, remaining: rem };
+        }
+        const changed = ids.some(id => next[id].initial !== state.qadha[id].initial || next[id].remaining !== state.qadha[id].remaining);
+        if (changed) {
+          pushHistory(single ? `Edit ${PRAYERS.find(p => p.id === ids[0]).name}` : 'Set bilangan qadha');
+          Object.assign(state.qadha, next);
+        }
+        state.settings.qadhaSetupDone = true;
+        save(); closeModal(); refresh();
+        if (changed) toast('💾 Bilangan qadha disimpan', { label:'Undo', onClick: undo });
+      };
+    });
+}
+
+/* ================= MODULE REGISTRY ================= */
+// To add a new section later: create an object with { id, label, icon, mount(el), update() } and push it here.
+const MODULES = [TaskModule, QadhaModule];
+const COMING_SOON = ['Kewangan', 'Bacaan'];
+
+function currentModule(){ return MODULES.find(m => m.id === state.settings.tab) || MODULES[0]; }
+function renderTabs(){
+  $('#tabs').innerHTML = MODULES.map(m =>
+    `<button class="tab ${m.id===currentModule().id?'active':''}" role="tab" aria-selected="${m.id===currentModule().id}" data-action="tab" data-tab="${m.id}">${m.icon} ${m.label}</button>`).join('')
+    + `<button class="tab" disabled title="${COMING_SOON.join(', ')}">＋ Akan datang</button>`;
+}
+function mountSection(){ currentModule().mount($('#section')); }
+function refresh(){ renderHero(); currentModule().update(); }
+
+/* ================= SETTINGS / BACKUP ================= */
+function exportData(){
+  const data = { app:'LifeHub', exportedAt:new Date().toISOString(), ...state };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `lifehub-backup-${todayStr()}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  toast('📦 Data dieksport');
+}
+$('#importFile').addEventListener('change', async e => {
+  const file = e.target.files[0]; e.target.value = '';
+  if (!file) return;
+  let raw;
+  try { raw = JSON.parse(await file.text()); }
+  catch { toast('⚠️ Fail tidak sah (bukan JSON).'); return; }
+  if (!raw || (!Array.isArray(raw.tasks) && !raw.qadha)) { toast('⚠️ Fail ini bukan backup Life Hub.'); return; }
+  const n = Array.isArray(raw.tasks) ? raw.tasks.length : 0;
+  const ok = await confirmDialog({ title:'Import data?', message:`Data sedia ada akan diganti dengan backup ini (${n} tugasan). Teruskan?`, okLabel:'Import', danger:true });
+  if (!ok) return;
+  const theme = state.settings.theme;
+  state = normalize(raw);
+  state.settings.theme = raw.settings?.theme || theme;
+  save(); applyTheme(); renderTabs(); mountSection(); renderHero();
+  toast('✅ Data berjaya diimport');
+});
+function openSettings(){
+  openModal(`
+    <h3>⚙️ Tetapan</h3>
+    <p class="desc">Semua data disimpan dalam pelayar (localStorage) peranti ini. Export secara berkala sebagai backup.</p>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button class="btn btn-ghost" data-m="theme">${state.settings.theme==='dark'?'☀️ Tukar ke Mod Cerah':'🌙 Tukar ke Mod Gelap'}</button>
+      <button class="btn btn-ghost" data-m="export">📦 Export Data (.JSON)</button>
+      <button class="btn btn-ghost" data-m="import">📥 Import Data</button>
+      <button class="btn btn-fail" data-m="reset">🗑️ Padam Semua Data</button>
+    </div>
+    <div class="actions"><button class="btn btn-primary" data-m="close">Tutup</button></div>`, m => {
+      m.querySelector('[data-m=theme]').onclick = () => { $('#themeBtn').click(); closeModal(); };
+      m.querySelector('[data-m=export]').onclick = () => { closeModal(); exportData(); };
+      m.querySelector('[data-m=import]').onclick = () => { closeModal(); $('#importFile').click(); };
+      m.querySelector('[data-m=close]').onclick = closeModal;
+      m.querySelector('[data-m=reset]').onclick = async () => {
+        closeModal();
+        const ok = await confirmDialog({ title:'Padam SEMUA data?', message:'Semua tugasan dan rekod qadha akan dipadam. Disarankan Export dahulu. Tindakan ini tidak boleh diundur.', okLabel:'Padam Semua', danger:true });
+        if (!ok) return;
+        const theme = state.settings.theme;
+        state = defaultState(); state.settings.theme = theme;
+        save(); renderTabs(); mountSection(); renderHero();
+        toast('Semua data telah dipadam.');
+      };
+    });
+}
+$('#settingsBtn').onclick = openSettings;
+
+/* ================= GLOBAL ACTIONS ================= */
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-action]'); if (!el || el.disabled) return;
+  const a = el.dataset.action;
+  switch (a) {
+    case 'tab': state.settings.tab = el.dataset.tab; save(); renderTabs(); mountSection(); break;
+    case 'filter': state.settings.filter = el.dataset.f; save(); TaskModule.update(); break;
+    case 'status': setTaskStatus(el.dataset.id, el.dataset.s); break;
+    case 'edit-task': editTask(el.dataset.id); break;
+    case 'del-task': deleteTask(el.dataset.id); break;
+    case 'qadha-minus': qadhaMinus(el.dataset.p); break;
+    case 'qadha-plus': qadhaPlus(el.dataset.p); break;
+    case 'qadha-edit': openQadhaSetup([el.dataset.p], false); break;
+    case 'qadha-set-all': openQadhaSetup(PRAYERS.map(p => p.id), false); break;
+    case 'undo': undo(); break;
+    case 'export': exportData(); break;
+    case 'import': $('#importFile').click(); break;
+  }
+});
+
+// Sync across tabs/windows
+window.addEventListener('storage', e => {
+  if (e.key === STORAGE_KEY) { state = load(); applyTheme(); renderTabs(); mountSection(); renderHero(); }
+});
+// Refresh greeting & "today" every minute
+setInterval(renderHero, 60000);
+
+/* ================= INIT ================= */
+applyTheme();
+renderTeam();
+renderHero();
+renderTabs();
+mountSection();
+})();
+</script>
+</body>
+</html>
