@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Life Hub · Hoenn</title>
+<title>My Life Hub · Hoenn</title>
 <meta name="theme-color" content="#059669">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -282,7 +282,7 @@ footer .muted{color:var(--muted);font-size:.8rem;font-weight:600}
     <div class="topbar-inner">
       <div class="brand">
         <div class="logo">🌿</div>
-        <div>Life Hub<small>Hoenn Edition</small></div>
+        <div>My Life Hub<small>Hoenn Edition</small></div>
       </div>
       <div class="top-actions">
         <button class="icon-btn" id="themeBtn" aria-label="Toggle theme" title="Toggle theme">🌙</button>
@@ -309,7 +309,7 @@ footer .muted{color:var(--muted);font-size:.8rem;font-weight:600}
         <button class="btn btn-ghost btn-sm" data-action="export">Export Data (.JSON)</button>
         <button class="btn btn-ghost btn-sm" data-action="import">Import Data</button>
       </div>
-      <span class="muted">Life Hub v1.0 · Data saved on this device</span>
+      <span class="muted">My Life Hub v1.0 · Data saved on this device</span>
     </div>
   </footer>
 </div>
@@ -820,7 +820,7 @@ $('#importFile').addEventListener('change', async e => {
   let raw;
   try { raw = JSON.parse(await file.text()); }
   catch { toast('⚠️ Invalid file (not JSON).'); return; }
-  if (!raw || (!Array.isArray(raw.tasks) && !raw.qadha)) { toast("⚠️ This file isn't a Life Hub backup."); return; }
+  if (!raw || (!Array.isArray(raw.tasks) && !raw.qadha)) { toast("⚠️ This file isn't a My Life Hub backup."); return; }
   const n = Array.isArray(raw.tasks) ? raw.tasks.length : 0;
   const ok = await confirmDialog({ title:'Import data?', message:`Your current data will be replaced with this backup (${n} tasks). Continue?`, okLabel:'Import', danger:true });
   if (!ok) return;
