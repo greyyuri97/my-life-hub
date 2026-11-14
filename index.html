@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ms">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -209,7 +209,7 @@ input:focus{border-color:var(--emerald);box-shadow:0 0 0 4px var(--emerald-soft)
 .prayer .row{display:flex;gap:8px}
 .prayer .row .btn-primary{flex:1}
 .prayer.complete{border-color:rgba(16,185,129,.45)}
-.prayer.complete::before{content:"Selesai 🎉";position:absolute;top:14px;right:52px;font-size:.7rem;font-weight:800;
+.prayer.complete::before{content:"Done 🎉";position:absolute;top:14px;right:52px;font-size:.7rem;font-weight:800;
   padding:4px 10px;border-radius:999px;background:var(--emerald);color:#fff}
 .prayer.unset .count{color:var(--muted)}
 .bump{animation:bump .35s ease}
@@ -285,16 +285,16 @@ footer .muted{color:var(--muted);font-size:.8rem;font-weight:600}
         <div>Life Hub<small>Hoenn Edition</small></div>
       </div>
       <div class="top-actions">
-        <button class="icon-btn" id="themeBtn" aria-label="Tukar tema" title="Tukar tema">🌙</button>
-        <button class="icon-btn" id="settingsBtn" aria-label="Tetapan" title="Tetapan">⚙️</button>
+        <button class="icon-btn" id="themeBtn" aria-label="Toggle theme" title="Toggle theme">🌙</button>
+        <button class="icon-btn" id="settingsBtn" aria-label="Settings" title="Settings">⚙️</button>
       </div>
     </div>
   </header>
 
   <section class="card hero">
-    <h1 id="greeting">Selamat datang! 👋</h1>
+    <h1 id="greeting">Welcome! 👋</h1>
     <div class="date" id="todayLabel"></div>
-    <div class="team-label">My Gen 3 Partner Team</div>
+    <div class="team-label">My Partner Team</div>
     <div class="team" id="team"></div>
     <div class="stats" id="stats"></div>
   </section>
@@ -309,7 +309,7 @@ footer .muted{color:var(--muted);font-size:.8rem;font-weight:600}
         <button class="btn btn-ghost btn-sm" data-action="export">Export Data (.JSON)</button>
         <button class="btn btn-ghost btn-sm" data-action="import">Import Data</button>
       </div>
-      <span class="muted">Life Hub v1.0 · Data disimpan dalam peranti ini</span>
+      <span class="muted">Life Hub v1.0 · Data saved on this device</span>
     </div>
   </footer>
 </div>
@@ -324,8 +324,8 @@ footer .muted{color:var(--muted);font-size:.8rem;font-weight:600}
 
 /* ================= CONSTANTS ================= */
 const STORAGE_KEY = 'lifehub_v1';
-const HARI = ['Ahad','Isnin','Selasa','Rabu','Khamis','Jumaat','Sabtu'];
-const BULAN = ['Jan','Feb','Mac','Apr','Mei','Jun','Jul','Ogos','Sep','Okt','Nov','Dis'];
+const HARI = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const BULAN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const PRAYERS = [
   { id:'subuh',   name:'SUBUH',   icon:'🌅' },
   { id:'zohor',   name:'ZOHOR',   icon:'☀️' },
@@ -336,12 +336,12 @@ const PRAYERS = [
 const SPRITE = id => `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`;
 const SPRITE_FALLBACK = id => `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;
 const TEAM = [
-  { id:384, name:'Rayquaza',  color:'#059669' },
-  { id:254, name:'Sceptile',  color:'#16A34A' },
   { id:257, name:'Blaziken',  color:'#EA580C' },
-  { id:260, name:'Swampert',  color:'#0284C7' },
+  { id:334, name:'Altaria',   color:'#38BDF8' },
+  { id:376, name:'Metagross', color:'#475569' },
+  { id:130, name:'Gyarados',  color:'#2563EB' },
   { id:282, name:'Gardevoir', color:'#22C55E' },
-  { id:376, name:'Metagross', color:'#475569' }
+  { id:405, name:'Luxray',    color:'#1E3A8A' }
 ];
 const HISTORY_MAX = 20;
 
@@ -404,7 +404,7 @@ function load(){
 let state = load();
 function save(){
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
-  catch { toast('⚠️ Gagal simpan data (storan penuh?)'); }
+  catch { toast('⚠️ Failed to save data (storage full?)'); }
 }
 
 /* ================= TOAST ================= */
@@ -443,7 +443,7 @@ function closeModal(){
 $('#overlay').addEventListener('click', e => { if (e.target.id === 'overlay') closeModal(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#overlay').classList.contains('show')) closeModal(); });
 
-function confirmDialog({ title, message, okLabel='Ya', danger=false }){
+function confirmDialog({ title, message, okLabel='Yes', danger=false }){
   return new Promise(resolve => {
     let done = false;
     const finish = v => { if (!done) { done = true; resolve(v); } };
@@ -451,7 +451,7 @@ function confirmDialog({ title, message, okLabel='Ya', danger=false }){
       <h3>${esc(title)}</h3>
       <p class="desc">${esc(message)}</p>
       <div class="actions">
-        <button class="btn btn-ghost" data-m="no">Batal</button>
+        <button class="btn btn-ghost" data-m="no">Cancel</button>
         <button class="btn ${danger ? 'btn-danger' : 'btn-primary'}" data-m="yes">${esc(okLabel)}</button>
       </div>`, m => {
         m.querySelector('[data-m=no]').onclick = () => { finish(false); closeModal(); };
@@ -496,7 +496,7 @@ function attachSpriteFallback(img){
 }
 function renderHero(){
   const h = new Date().getHours();
-  const g = h < 12 ? 'Selamat pagi' : h < 14 ? 'Selamat tengah hari' : h < 19 ? 'Selamat petang' : 'Selamat malam';
+  const g = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
   $('#greeting').textContent = `${g}! 👋`;
   const t = todayStr();
   $('#todayLabel').textContent = `${dayName(t)}, ${fmtDate(t)}`;
@@ -504,25 +504,25 @@ function renderHero(){
   const doneToday = state.tasks.filter(x => x.status === 'done' && x.date === t).length;
   const baki = PRAYERS.reduce((a,p) => a + state.qadha[p.id].remaining, 0);
   $('#stats').innerHTML = `
-    <span class="chip amber">⏳ <b>${pending}</b> tugasan pending</span>
-    <span class="chip green">✅ <b>${doneToday}</b> selesai hari ini</span>
-    <span class="chip blue">🕌 Baki qadha: <b>${baki.toLocaleString('ms-MY')}</b></span>`;
+    <span class="chip amber">⏳ <b>${pending}</b> pending tasks</span>
+    <span class="chip green">✅ <b>${doneToday}</b> done today</span>
+    <span class="chip blue">🕌 Qadha remaining: <b>${baki.toLocaleString('en-US')}</b></span>`;
 }
 
 /* ================= MODULE: TASKS ================= */
 const TaskModule = {
-  id:'tasks', label:'Tugasan Harian', icon:'📋',
+  id:'tasks', label:'Daily Tasks', icon:'📋',
   mount(el){
     const t = todayStr();
     el.innerHTML = `
       <div class="section-title">
-        <div><h2>📋 Tugasan Harian</h2><p>Rekod tugasan harian & tandakan status.</p></div>
+        <div><h2>📋 Daily Tasks</h2><p>Log your daily tasks and mark their status.</p></div>
       </div>
       <form id="taskForm" class="add-grid" autocomplete="off">
-        <div><label class="lbl" for="taskDate">Tarikh</label><input type="date" id="taskDate" value="${t}" required></div>
-        <div><label class="lbl">Hari</label><div class="day-chip" id="taskDay">${dayName(t)}</div></div>
-        <div class="item-field"><label class="lbl" for="taskItem">Item</label><input type="text" id="taskItem" placeholder="Apa nak buat hari ini?" maxlength="500"></div>
-        <button class="btn btn-primary" type="submit">＋ Tambah</button>
+        <div><label class="lbl" for="taskDate">Date</label><input type="date" id="taskDate" value="${t}" required></div>
+        <div><label class="lbl">Day</label><div class="day-chip" id="taskDay">${dayName(t)}</div></div>
+        <div class="item-field"><label class="lbl" for="taskItem">Item</label><input type="text" id="taskItem" placeholder="What do you need to do today?" maxlength="500"></div>
+        <button class="btn btn-primary" type="submit">＋ Add</button>
       </form>
       <div class="filters" id="filters"></div>
       <div class="task-list" id="taskList"></div>`;
@@ -532,15 +532,15 @@ const TaskModule = {
       e.preventDefault();
       const item = el.querySelector('#taskItem').value.trim();
       const date = dateEl.value;
-      if (!validDate(date)) { toast('Sila pilih tarikh yang sah.'); return; }
-      if (!item) { toast('Sila isi ITEM dahulu.'); el.querySelector('#taskItem').focus(); return; }
+      if (!validDate(date)) { toast('Please pick a valid date.'); return; }
+      if (!item) { toast('Please enter an item first.'); el.querySelector('#taskItem').focus(); return; }
       state.tasks.push({ id:uid(), date, item, status:'pending', createdAt:Date.now() });
       save();
       el.querySelector('#taskItem').value = '';
       el.querySelector('#taskItem').focus();
       if (state.settings.filter !== 'all' && state.settings.filter !== 'pending') state.settings.filter = 'all';
       refresh();
-      toast('✅ Tugasan ditambah');
+      toast('✅ Task added');
     });
     this.update();
   },
@@ -549,7 +549,7 @@ const TaskModule = {
     if (!list) return;
     const counts = { all: state.tasks.length, pending:0, done:0, fail:0 };
     state.tasks.forEach(t => counts[t.status]++);
-    const F = [['all','Semua'],['pending','Pending'],['done','Done'],['fail','Unsuccessful']];
+    const F = [['all','All'],['pending','Pending'],['done','Done'],['fail','Unsuccessful']];
     filtersEl.innerHTML = F.map(([k,l]) =>
       `<button class="filter ${state.settings.filter===k?'active':''}" data-action="filter" data-f="${k}">${l}<span class="n">${counts[k]}</span></button>`).join('');
 
@@ -559,8 +559,8 @@ const TaskModule = {
       .sort((a,b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
 
     if (!rows.length) {
-      const msg = state.tasks.length ? 'Tiada tugasan dalam kategori ini.' : 'Tiada tugasan. Rehat sekejap!';
-      list.innerHTML = `<div class="empty"><img src="${SPRITE(258)}" alt="" data-id="258" data-name="Mudkip" data-color="#0284C7"><p>${msg}</p></div>`;
+      const msg = state.tasks.length ? 'No tasks in this category.' : 'No tasks yet. Take a breather!';
+      list.innerHTML = `<div class="empty"><img src="${SPRITE(360)}" alt="" data-id="360" data-name="Wynaut" data-color="#38BDF8"><p>${msg}</p></div>`;
       const img = list.querySelector('img'); if (img) attachSpriteFallback(img);
       return;
     }
@@ -575,7 +575,7 @@ const TaskModule = {
       return `
         <div class="task ${cls} ${x.date===t?'is-today':''}">
           <div>
-            <div class="task-meta">${dayName(x.date)} · ${fmtDate(x.date)} ${x.date===t?'<span class="today-tag">HARI INI</span>':''}</div>
+            <div class="task-meta">${dayName(x.date)} · ${fmtDate(x.date)} ${x.date===t?'<span class="today-tag">TODAY</span>':''}</div>
             <div class="task-text">${esc(x.item)}</div>
           </div>
           <span class="badge ${bc}">${bl}</span>
@@ -583,7 +583,7 @@ const TaskModule = {
             ${btns}
             <span class="spacer"></span>
             <button class="btn btn-icon" data-action="edit-task" data-id="${x.id}" aria-label="Edit" title="Edit">✏️</button>
-            <button class="btn btn-icon del" data-action="del-task" data-id="${x.id}" aria-label="Padam" title="Padam">🗑️</button>
+            <button class="btn btn-icon del" data-action="del-task" data-id="${x.id}" aria-label="Delete" title="Delete">🗑️</button>
           </div>
         </div>`;
     }).join('');
@@ -593,25 +593,25 @@ const TaskModule = {
 function setTaskStatus(id, s){
   const t = state.tasks.find(x => x.id === id); if (!t) return;
   t.status = s; save(); refresh();
-  if (s === 'done') toast('🎉 Syabas! Tugasan selesai');
-  else if (s === 'fail') toast('Tak apa, cuba lagi esok 💪');
+  if (s === 'done') toast('🎉 Nice! Task completed');
+  else if (s === 'fail') toast("That's okay, try again tomorrow 💪");
 }
 async function deleteTask(id){
   const t = state.tasks.find(x => x.id === id); if (!t) return;
-  const ok = await confirmDialog({ title:'Padam tugasan?', message:`"${t.item}" akan dipadam secara kekal.`, okLabel:'Padam', danger:true });
+  const ok = await confirmDialog({ title:'Delete task?', message:`"${t.item}" will be permanently deleted.`, okLabel:'Delete', danger:true });
   if (!ok) return;
   const idx = state.tasks.indexOf(t);
   state.tasks.splice(idx, 1); save(); refresh();
-  toast('🗑️ Tugasan dipadam', { label:'Undo', onClick(){ state.tasks.splice(Math.min(idx, state.tasks.length), 0, t); save(); refresh(); } });
+  toast('🗑️ Task deleted', { label:'Undo', onClick(){ state.tasks.splice(Math.min(idx, state.tasks.length), 0, t); save(); refresh(); } });
 }
 function editTask(id){
   const t = state.tasks.find(x => x.id === id); if (!t) return;
   openModal(`
-    <h3>✏️ Edit Tugasan</h3>
-    <p class="desc">Kemaskini tarikh atau item tugasan.</p>
+    <h3>✏️ Edit Task</h3>
+    <p class="desc">Update the task date or item.</p>
     <div class="field" style="display:grid;grid-template-columns:1fr 120px;gap:10px;align-items:end">
-      <div><label class="lbl" for="eDate">Tarikh</label><input type="date" id="eDate" value="${t.date}"></div>
-      <div><label class="lbl">Hari</label><div class="day-chip" id="eDay">${dayName(t.date)}</div></div>
+      <div><label class="lbl" for="eDate">Date</label><input type="date" id="eDate" value="${t.date}"></div>
+      <div><label class="lbl">Day</label><div class="day-chip" id="eDay">${dayName(t.date)}</div></div>
     </div>
     <div class="field"><label class="lbl" for="eItem">Item</label><input type="text" id="eItem" value="${esc(t.item)}" maxlength="500"></div>
     <div class="field"><label class="lbl">Status</label>
@@ -622,8 +622,8 @@ function editTask(id){
     </div>
     <div class="err" id="eErr"></div>
     <div class="actions">
-      <button class="btn btn-ghost" data-m="cancel">Batal</button>
-      <button class="btn btn-primary" data-m="save">Simpan</button>
+      <button class="btn btn-ghost" data-m="cancel">Cancel</button>
+      <button class="btn btn-primary" data-m="save">Save</button>
     </div>`, m => {
       let status = t.status;
       const d = m.querySelector('#eDate');
@@ -634,10 +634,10 @@ function editTask(id){
       });
       const doSave = () => {
         const item = m.querySelector('#eItem').value.trim();
-        if (!validDate(d.value)) { m.querySelector('#eErr').textContent = 'Tarikh tidak sah.'; return; }
-        if (!item) { m.querySelector('#eErr').textContent = 'Item tidak boleh kosong.'; return; }
+        if (!validDate(d.value)) { m.querySelector('#eErr').textContent = 'Invalid date.'; return; }
+        if (!item) { m.querySelector('#eErr').textContent = 'Item cannot be empty.'; return; }
         Object.assign(t, { date:d.value, item, status });
-        save(); closeModal(); refresh(); toast('💾 Tugasan dikemaskini');
+        save(); closeModal(); refresh(); toast('💾 Task updated');
       };
       m.querySelector('[data-m=cancel]').onclick = closeModal;
       m.querySelector('[data-m=save]').onclick = doSave;
@@ -648,11 +648,11 @@ function editTask(id){
 /* ================= MODULE: QADHA ================= */
 let bumpId = null;
 const QadhaModule = {
-  id:'qadha', label:'Rekod Qadha Solat', icon:'🕌',
+  id:'qadha', label:'Qadha Prayer Tracker', icon:'🕌',
   mount(el){
     el.innerHTML = `
       <div class="section-title">
-        <div><h2>🕌 Rekod Qadha Solat</h2><p>Jejak baki solat qadha. Sedikit demi sedikit, insyaAllah.</p></div>
+        <div><h2>🕌 Qadha Prayer Tracker</h2><p>Track your remaining qadha prayers. Little by little, insyaAllah.</p></div>
       </div>
       <div class="card summary" id="qSummary"></div>
       <div class="prayer-grid" id="qGrid"></div>`;
@@ -670,15 +670,15 @@ const QadhaModule = {
     const last = state.history[state.history.length - 1];
     sum.innerHTML = `
       <div>
-        <div class="lbl" style="font-size:.72rem;font-weight:700;letter-spacing:.08em;color:var(--muted);text-transform:uppercase">Jumlah Baki Qadha</div>
-        <div class="big">${totRem.toLocaleString('ms-MY')} <span>/ ${totIni.toLocaleString('ms-MY')}</span></div>
+        <div class="lbl" style="font-size:.72rem;font-weight:700;letter-spacing:.08em;color:var(--muted);text-transform:uppercase">Total Qadha Remaining</div>
+        <div class="big">${totRem.toLocaleString('en-US')} <span>/ ${totIni.toLocaleString('en-US')}</span></div>
       </div>
       <div class="acts">
-        <button class="btn btn-ghost btn-sm" data-action="undo" ${last ? '' : 'disabled'} title="${last ? esc('Undo: ' + last.label) : 'Tiada tindakan untuk undo'}">↶ Undo${state.history.length ? ` (${state.history.length})` : ''}</button>
-        <button class="btn btn-blue btn-sm" data-action="qadha-set-all">✎ Set Bilangan</button>
+        <button class="btn btn-ghost btn-sm" data-action="undo" ${last ? '' : 'disabled'} title="${last ? esc('Undo: ' + last.label) : 'Nothing to undo'}">↶ Undo${state.history.length ? ` (${state.history.length})` : ''}</button>
+        <button class="btn btn-blue btn-sm" data-action="qadha-set-all">✎ Set Counts</button>
       </div>
       <div class="bar"><i style="width:${pct}%"></i></div>
-      <div class="sub" style="grid-column:1/-1;margin-top:-4px">${pct}% selesai · ${done.toLocaleString('ms-MY')} telah diganti</div>`;
+      <div class="sub" style="grid-column:1/-1;margin-top:-4px">${pct}% complete · ${done.toLocaleString('en-US')} made up</div>`;
 
     grid.innerHTML = PRAYERS.map(p => {
       const q = state.qadha[p.id];
@@ -693,16 +693,16 @@ const QadhaModule = {
             <button class="btn btn-icon" data-action="qadha-edit" data-p="${p.id}" aria-label="Edit ${p.name}" title="Edit">✏️</button>
           </div>
           <div>
-            <div class="lbl2">Baki</div>
-            <div class="count ${bumpId===p.id?'bump':''}">${q.remaining.toLocaleString('ms-MY')} <small>/ ${q.initial.toLocaleString('ms-MY')}</small></div>
+            <div class="lbl2">Remaining</div>
+            <div class="count ${bumpId===p.id?'bump':''}">${q.remaining.toLocaleString('en-US')} <small>/ ${q.initial.toLocaleString('en-US')}</small></div>
           </div>
           <div>
             <div class="bar"><i style="width:${pp}%"></i></div>
-            <div class="pct">${unset ? 'Belum ditetapkan, tekan ✏️ untuk set' : `${pp}% selesai · ${d.toLocaleString('ms-MY')} diganti`}</div>
+            <div class="pct">${unset ? 'Not set yet, tap ✏️ to set' : `${pp}% complete · ${d.toLocaleString('en-US')} made up`}</div>
           </div>
           <div class="row">
-            <button class="btn btn-primary" data-action="qadha-minus" data-p="${p.id}" ${q.remaining<=0?'disabled':''}>−1 (Dah Solat)</button>
-            <button class="btn btn-ghost" data-action="qadha-plus" data-p="${p.id}" title="Tambah 1 (terlepas solat)" aria-label="Tambah 1 ${p.name}">+1</button>
+            <button class="btn btn-primary" data-action="qadha-minus" data-p="${p.id}" ${q.remaining<=0?'disabled':''}>−1 (Prayed)</button>
+            <button class="btn btn-ghost" data-action="qadha-plus" data-p="${p.id}" title="Add 1 (missed prayer)" aria-label="Add 1 ${p.name}">+1</button>
           </div>
         </div>`;
     }).join('');
@@ -716,7 +716,7 @@ function pushHistory(label){
 }
 function undo(){
   const h = state.history.pop();
-  if (!h) { toast('Tiada tindakan untuk undo.'); return; }
+  if (!h) { toast('Nothing to undo.'); return; }
   state.qadha = normalize({ qadha: h.qadha }).qadha;
   save(); refresh(); toast(`↶ Undo: ${h.label}`);
 }
@@ -725,34 +725,34 @@ function qadhaMinus(pid){
   if (!q || q.remaining <= 0) return;
   pushHistory(`${p.name} −1`);
   q.remaining -= 1; bumpId = pid; save(); refresh();
-  if (q.remaining === 0) toast(`Alhamdulillah! Qadha ${p.name} selesai 🎉`, { label:'Undo', onClick: undo });
-  else toast(`${p.name} −1 · Baki ${q.remaining}`, { label:'Undo', onClick: undo });
+  if (q.remaining === 0) toast(`Alhamdulillah! ${p.name} qadha complete 🎉`, { label:'Undo', onClick: undo });
+  else toast(`${p.name} −1 · ${q.remaining} left`, { label:'Undo', onClick: undo });
 }
 function qadhaPlus(pid){
   const q = state.qadha[pid], p = PRAYERS.find(x => x.id === pid);
   if (!q) return;
   pushHistory(`${p.name} +1`);
   q.remaining += 1; q.initial += 1; bumpId = pid; save(); refresh();
-  toast(`${p.name} +1 · Baki ${q.remaining}`, { label:'Undo', onClick: undo });
+  toast(`${p.name} +1 · ${q.remaining} left`, { label:'Undo', onClick: undo });
 }
 function openQadhaSetup(ids, firstTime){
   const single = ids.length === 1;
-  const title = firstTime ? '🕌 Tetapan Awal Qadha' : single ? `✏️ Edit ${PRAYERS.find(p => p.id === ids[0]).name}` : '✎ Set Bilangan Qadha';
+  const title = firstTime ? '🕌 Qadha Initial Setup' : single ? `✏️ Edit ${PRAYERS.find(p => p.id === ids[0]).name}` : '✎ Set Qadha Counts';
   openModal(`
     <h3>${title}</h3>
-    <p class="desc">${firstTime ? 'Masukkan bilangan solat qadha yang perlu diganti untuk setiap waktu. Boleh ubah bila-bila masa.' : 'Bilangan Awal = jumlah asal. Baki = yang masih perlu diganti.'}</p>
+    <p class="desc">${firstTime ? 'Enter the number of qadha prayers to make up for each prayer time. You can change this anytime.' : 'Starting Count = original total. Remaining = still to make up.'}</p>
     ${ids.map(id => {
       const p = PRAYERS.find(x => x.id === id), q = state.qadha[id];
       return `<div class="setup-row">
         <div class="pn">${p.icon} ${p.name}</div>
-        <div><label class="lbl" for="ini-${id}">Bilangan Awal</label><input type="number" inputmode="numeric" min="0" max="99999" id="ini-${id}" value="${q.initial}"></div>
-        <div><label class="lbl" for="rem-${id}">Baki</label><input type="number" inputmode="numeric" min="0" max="99999" id="rem-${id}" value="${q.remaining}"></div>
+        <div><label class="lbl" for="ini-${id}">Starting Count</label><input type="number" inputmode="numeric" min="0" max="99999" id="ini-${id}" value="${q.initial}"></div>
+        <div><label class="lbl" for="rem-${id}">Remaining</label><input type="number" inputmode="numeric" min="0" max="99999" id="rem-${id}" value="${q.remaining}"></div>
       </div>`;
     }).join('')}
     <div class="err" id="qErr"></div>
     <div class="actions">
-      <button class="btn btn-ghost" data-m="cancel">${firstTime ? 'Nanti dulu' : 'Batal'}</button>
-      <button class="btn btn-primary" data-m="save">Simpan</button>
+      <button class="btn btn-ghost" data-m="cancel">${firstTime ? 'Later' : 'Cancel'}</button>
+      <button class="btn btn-primary" data-m="save">Save</button>
     </div>`, m => {
       // When the starting count changes and Baki was untouched (equal to old starting count), keep Baki in sync
       ids.forEach(id => {
@@ -772,19 +772,19 @@ function openQadhaSetup(ids, firstTime){
           const ini = iniRaw === '' ? 0 : toInt(iniRaw);
           const rem = remRaw === '' ? ini : toInt(remRaw);
           if (isNaN(ini) || isNaN(rem) || ini < 0 || rem < 0 || ini > 99999 || rem > 99999) {
-            m.querySelector('#qErr').textContent = `${name}: masukkan nombor 0 hingga 99999.`; return;
+            m.querySelector('#qErr').textContent = `${name}: enter a number from 0 to 99999.`; return;
           }
-          if (rem > ini) { m.querySelector('#qErr').textContent = `${name}: Baki tidak boleh melebihi Bilangan Awal.`; return; }
+          if (rem > ini) { m.querySelector('#qErr').textContent = `${name}: Remaining cannot exceed Starting Count.`; return; }
           next[id] = { initial: ini, remaining: rem };
         }
         const changed = ids.some(id => next[id].initial !== state.qadha[id].initial || next[id].remaining !== state.qadha[id].remaining);
         if (changed) {
-          pushHistory(single ? `Edit ${PRAYERS.find(p => p.id === ids[0]).name}` : 'Set bilangan qadha');
+          pushHistory(single ? `Edit ${PRAYERS.find(p => p.id === ids[0]).name}` : 'Set qadha counts');
           Object.assign(state.qadha, next);
         }
         state.settings.qadhaSetupDone = true;
         save(); closeModal(); refresh();
-        if (changed) toast('💾 Bilangan qadha disimpan', { label:'Undo', onClick: undo });
+        if (changed) toast('💾 Qadha counts saved', { label:'Undo', onClick: undo });
       };
     });
 }
@@ -792,13 +792,13 @@ function openQadhaSetup(ids, firstTime){
 /* ================= MODULE REGISTRY ================= */
 // To add a new section later: create an object with { id, label, icon, mount(el), update() } and push it here.
 const MODULES = [TaskModule, QadhaModule];
-const COMING_SOON = ['Kewangan', 'Bacaan'];
+const COMING_SOON = ['Finance', 'Reading'];
 
 function currentModule(){ return MODULES.find(m => m.id === state.settings.tab) || MODULES[0]; }
 function renderTabs(){
   $('#tabs').innerHTML = MODULES.map(m =>
     `<button class="tab ${m.id===currentModule().id?'active':''}" role="tab" aria-selected="${m.id===currentModule().id}" data-action="tab" data-tab="${m.id}">${m.icon} ${m.label}</button>`).join('')
-    + `<button class="tab" disabled title="${COMING_SOON.join(', ')}">＋ Akan datang</button>`;
+    + `<button class="tab" disabled title="${COMING_SOON.join(', ')}">＋ Coming soon</button>`;
 }
 function mountSection(){ currentModule().mount($('#section')); }
 function refresh(){ renderHero(); currentModule().update(); }
@@ -812,47 +812,47 @@ function exportData(){
   a.download = `lifehub-backup-${todayStr()}.json`;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  toast('📦 Data dieksport');
+  toast('📦 Data exported');
 }
 $('#importFile').addEventListener('change', async e => {
   const file = e.target.files[0]; e.target.value = '';
   if (!file) return;
   let raw;
   try { raw = JSON.parse(await file.text()); }
-  catch { toast('⚠️ Fail tidak sah (bukan JSON).'); return; }
-  if (!raw || (!Array.isArray(raw.tasks) && !raw.qadha)) { toast('⚠️ Fail ini bukan backup Life Hub.'); return; }
+  catch { toast('⚠️ Invalid file (not JSON).'); return; }
+  if (!raw || (!Array.isArray(raw.tasks) && !raw.qadha)) { toast("⚠️ This file isn't a Life Hub backup."); return; }
   const n = Array.isArray(raw.tasks) ? raw.tasks.length : 0;
-  const ok = await confirmDialog({ title:'Import data?', message:`Data sedia ada akan diganti dengan backup ini (${n} tugasan). Teruskan?`, okLabel:'Import', danger:true });
+  const ok = await confirmDialog({ title:'Import data?', message:`Your current data will be replaced with this backup (${n} tasks). Continue?`, okLabel:'Import', danger:true });
   if (!ok) return;
   const theme = state.settings.theme;
   state = normalize(raw);
   state.settings.theme = raw.settings?.theme || theme;
   save(); applyTheme(); renderTabs(); mountSection(); renderHero();
-  toast('✅ Data berjaya diimport');
+  toast('✅ Data imported');
 });
 function openSettings(){
   openModal(`
-    <h3>⚙️ Tetapan</h3>
-    <p class="desc">Semua data disimpan dalam pelayar (localStorage) peranti ini. Export secara berkala sebagai backup.</p>
+    <h3>⚙️ Settings</h3>
+    <p class="desc">All data is stored in this device's browser (localStorage). Export regularly as a backup.</p>
     <div style="display:flex;flex-direction:column;gap:10px">
-      <button class="btn btn-ghost" data-m="theme">${state.settings.theme==='dark'?'☀️ Tukar ke Mod Cerah':'🌙 Tukar ke Mod Gelap'}</button>
+      <button class="btn btn-ghost" data-m="theme">${state.settings.theme==='dark'?'☀️ Switch to Light Mode':'🌙 Switch to Dark Mode'}</button>
       <button class="btn btn-ghost" data-m="export">📦 Export Data (.JSON)</button>
       <button class="btn btn-ghost" data-m="import">📥 Import Data</button>
-      <button class="btn btn-fail" data-m="reset">🗑️ Padam Semua Data</button>
+      <button class="btn btn-fail" data-m="reset">🗑️ Delete All Data</button>
     </div>
-    <div class="actions"><button class="btn btn-primary" data-m="close">Tutup</button></div>`, m => {
+    <div class="actions"><button class="btn btn-primary" data-m="close">Close</button></div>`, m => {
       m.querySelector('[data-m=theme]').onclick = () => { $('#themeBtn').click(); closeModal(); };
       m.querySelector('[data-m=export]').onclick = () => { closeModal(); exportData(); };
       m.querySelector('[data-m=import]').onclick = () => { closeModal(); $('#importFile').click(); };
       m.querySelector('[data-m=close]').onclick = closeModal;
       m.querySelector('[data-m=reset]').onclick = async () => {
         closeModal();
-        const ok = await confirmDialog({ title:'Padam SEMUA data?', message:'Semua tugasan dan rekod qadha akan dipadam. Disarankan Export dahulu. Tindakan ini tidak boleh diundur.', okLabel:'Padam Semua', danger:true });
+        const ok = await confirmDialog({ title:'Delete ALL data?', message:'All tasks and qadha records will be deleted. We recommend exporting first. This cannot be undone.', okLabel:'Delete All', danger:true });
         if (!ok) return;
         const theme = state.settings.theme;
         state = defaultState(); state.settings.theme = theme;
         save(); renderTabs(); mountSection(); renderHero();
-        toast('Semua data telah dipadam.');
+        toast('All data has been deleted.');
       };
     });
 }
