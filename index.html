@@ -247,6 +247,9 @@ footer .muted{color:var(--muted);font-size:.8rem;font-weight:600}
 .toast button{border:0;background:var(--emerald);color:#fff;font:inherit;font-weight:800;font-size:.8rem;padding:6px 12px;border-radius:8px;cursor:pointer}
 .toast.out{opacity:0;transform:translateY(8px);transition:all .25s}
 
+.pin-input{text-align:center;letter-spacing:.7em;font-size:1.6rem!important;font-weight:800}
+.shake{animation:shake .35s}
+@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 
 @media (max-width:760px){
@@ -285,6 +288,7 @@ footer .muted{color:var(--muted);font-size:.8rem;font-weight:600}
         <div>My Life Hub<small>Hoenn Edition</small></div>
       </div>
       <div class="top-actions">
+        <button class="icon-btn" id="lockBtn" aria-label="Unlock" title="Unlock">🔒</button>
         <button class="icon-btn" id="themeBtn" aria-label="Toggle theme" title="Toggle theme">🌙</button>
         <button class="icon-btn" id="settingsBtn" aria-label="Settings" title="Settings">⚙️</button>
       </div>
@@ -344,6 +348,9 @@ const TEAM = [
   { id:405, name:'Luxray',    color:'#1E3A8A' }
 ];
 const HISTORY_MAX = 20;
+const PIN_HASH = '98ca704e9149ca345fd5ba5635fe62eaddccb3b1be85cef15a3567981b154aa0'; // SHA-256 of the PIN
+const UNLOCK_KEY = 'lifehub_unlocked';
+const EDIT_ACTIONS = new Set(['status','edit-task','del-task','qadha-minus','qadha-plus','qadha-edit','qadha-set-all','undo','import']);
 
 /* ================= HELPERS ================= */
 const $ = s => document.querySelector(s);
@@ -461,6 +468,66 @@ function confirmDialog({ title, message, okLabel='Yes', danger=false }){
   });
 }
 
+/* ================= PIN LOCK ================= */
+let pinFails = 0, pinBlockedUntil = 0;
+const isUnlocked = () => { try { return sessionStorage.getItem(UNLOCK_KEY) === '1'; } catch { return false; } };
+function setUnlocked(v){
+  try { v ? sessionStorage.setItem(UNLOCK_KEY, '1') : sessionStorage.removeItem(UNLOCK_KEY); } catch {}
+  renderLock();
+}
+async function sha256(t){
+  const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t));
+  return Array.from(new Uint8Array(b)).map(x => x.toString(16).padStart(2,'0')).join('');
+}
+function renderLock(){
+  const u = isUnlocked(), b = $('#lockBtn');
+  b.textContent = u ? '🔓' : '🔒';
+  b.title = u ? 'Editing unlocked. Tap to lock' : 'View only. Tap to unlock';
+  b.setAttribute('aria-label', b.title);
+  document.body.classList.toggle('locked', !u);
+}
+function requirePin(onOk){
+  if (isUnlocked()) { if (onOk) onOk(); return; }
+  openModal(`
+    <h3>🔒 Enter PIN</h3>
+    <p class="desc">Enter your 4-digit PIN to make changes.</p>
+    <input type="password" id="pinInput" class="pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" aria-label="PIN">
+    <div class="err" id="pinErr"></div>
+    <div class="actions">
+      <button class="btn btn-ghost" data-m="cancel">Cancel</button>
+      <button class="btn btn-primary" data-m="ok">Unlock</button>
+    </div>`, m => {
+      const inp = m.querySelector('#pinInput'), err = m.querySelector('#pinErr');
+      let busy = false;
+      const check = async () => {
+        if (busy) return;
+        const now = Date.now();
+        if (now < pinBlockedUntil) { err.textContent = `Too many attempts. Try again in ${Math.ceil((pinBlockedUntil - now) / 1000)}s.`; inp.value = ''; return; }
+        if (!/^\d{4}$/.test(inp.value)) { err.textContent = 'PIN must be 4 digits.'; return; }
+        busy = true;
+        const ok = (await sha256(inp.value)) === PIN_HASH;
+        busy = false;
+        if (ok) {
+          pinFails = 0; setUnlocked(true); closeModal(); toast('🔓 Unlocked for this session');
+          if (onOk) onOk();
+        } else {
+          pinFails++; inp.value = '';
+          if (pinFails >= 5) { pinFails = 0; pinBlockedUntil = Date.now() + 30000; err.textContent = 'Too many attempts. Try again in 30s.'; }
+          else err.textContent = 'Wrong PIN. Try again.';
+          const card = $('#modal'); card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake');
+        }
+      };
+      inp.addEventListener('input', () => { inp.value = inp.value.replace(/\D/g, '').slice(0, 4); if (inp.value.length === 4) check(); });
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') check(); });
+      m.querySelector('[data-m=ok]').onclick = check;
+      m.querySelector('[data-m=cancel]').onclick = closeModal;
+    });
+}
+$('#lockBtn').onclick = () => {
+  if (isUnlocked()) { setUnlocked(false); toast('🔒 Locked. View only'); }
+  else requirePin();
+};
+
 /* ================= THEME ================= */
 function applyTheme(){
   document.documentElement.setAttribute('data-theme', state.settings.theme);
@@ -530,6 +597,7 @@ const TaskModule = {
     dateEl.addEventListener('input', () => { el.querySelector('#taskDay').textContent = dayName(dateEl.value); });
     el.querySelector('#taskForm').addEventListener('submit', e => {
       e.preventDefault();
+      requirePin(() => {
       const item = el.querySelector('#taskItem').value.trim();
       const date = dateEl.value;
       if (!validDate(date)) { toast('Please pick a valid date.'); return; }
@@ -541,6 +609,7 @@ const TaskModule = {
       if (state.settings.filter !== 'all' && state.settings.filter !== 'pending') state.settings.filter = 'all';
       refresh();
       toast('✅ Task added');
+      });
     });
     this.update();
   },
@@ -658,7 +727,7 @@ const QadhaModule = {
       <div class="prayer-grid" id="qGrid"></div>`;
     this.update();
     const allZero = PRAYERS.every(p => state.qadha[p.id].initial === 0);
-    if (allZero && !state.settings.qadhaSetupDone) setTimeout(() => openQadhaSetup(PRAYERS.map(p => p.id), true), 250);
+    if (allZero && !state.settings.qadhaSetupDone && isUnlocked()) setTimeout(() => openQadhaSetup(PRAYERS.map(p => p.id), true), 250);
   },
   update(){
     const sum = $('#qSummary'), grid = $('#qGrid');
@@ -843,17 +912,16 @@ function openSettings(){
     <div class="actions"><button class="btn btn-primary" data-m="close">Close</button></div>`, m => {
       m.querySelector('[data-m=theme]').onclick = () => { $('#themeBtn').click(); closeModal(); };
       m.querySelector('[data-m=export]').onclick = () => { closeModal(); exportData(); };
-      m.querySelector('[data-m=import]').onclick = () => { closeModal(); $('#importFile').click(); };
+      m.querySelector('[data-m=import]').onclick = () => { closeModal(); requirePin(() => $('#importFile').click()); };
       m.querySelector('[data-m=close]').onclick = closeModal;
-      m.querySelector('[data-m=reset]').onclick = async () => {
-        closeModal();
+      m.querySelector('[data-m=reset]').onclick = () => { closeModal(); requirePin(async () => {
         const ok = await confirmDialog({ title:'Delete ALL data?', message:'All tasks and qadha records will be deleted. We recommend exporting first. This cannot be undone.', okLabel:'Delete All', danger:true });
         if (!ok) return;
         const theme = state.settings.theme;
         state = defaultState(); state.settings.theme = theme;
         save(); renderTabs(); mountSection(); renderHero();
         toast('All data has been deleted.');
-      };
+      }); };
     });
 }
 $('#settingsBtn').onclick = openSettings;
@@ -862,6 +930,7 @@ $('#settingsBtn').onclick = openSettings;
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-action]'); if (!el || el.disabled) return;
   const a = el.dataset.action;
+  if (EDIT_ACTIONS.has(a) && !isUnlocked()) { requirePin(() => { if (el.isConnected) el.click(); }); return; }
   switch (a) {
     case 'tab': state.settings.tab = el.dataset.tab; save(); renderTabs(); mountSection(); break;
     case 'filter': state.settings.filter = el.dataset.f; save(); TaskModule.update(); break;
@@ -887,6 +956,7 @@ setInterval(renderHero, 60000);
 
 /* ================= INIT ================= */
 applyTheme();
+renderLock();
 renderTeam();
 renderHero();
 renderTabs();
