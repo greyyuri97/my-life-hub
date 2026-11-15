@@ -258,6 +258,10 @@ textarea{resize:vertical;min-height:80px;line-height:1.5}
 .task.d-entry{border-left-color:#8B5CF6}
 .d-note{font-size:.9rem;color:var(--muted);margin-top:4px;white-space:pre-wrap;word-break:break-word}
 @media (max-width:760px){.dars-grid{grid-template-columns:1fr 1fr}.dars-grid .ds-event{grid-column:1/-1}.dars-grid .btn{width:100%}}
+.sync-badge{display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 12px;border-radius:12px;border:1px solid var(--border);background:var(--input);font:inherit;font-size:.78rem;font-weight:700;color:var(--muted);cursor:pointer;white-space:nowrap}
+.sync-badge.ok{color:var(--emerald-d)}.sync-badge.busy{color:var(--blue)}.sync-badge.warn{color:#B45309;background:var(--amber-soft)}
+[data-theme="dark"] .sync-badge.ok{color:#6EE7B7}[data-theme="dark"] .sync-badge.busy{color:#7DD3FC}[data-theme="dark"] .sync-badge.warn{color:#FCD34D}
+@media (max-width:480px){.sync-badge .t{display:none}.sync-badge{padding:0 11px}}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 
 @media (max-width:760px){
@@ -296,6 +300,7 @@ textarea{resize:vertical;min-height:80px;line-height:1.5}
         <div>My Life Hub<small>Hoenn Edition</small></div>
       </div>
       <div class="top-actions">
+        <button class="sync-badge" id="syncBadge" title="Sync status">⚠ <span class="t">Not synced</span></button>
         <button class="icon-btn" id="lockBtn" aria-label="Unlock" title="Unlock">🔒</button>
         <button class="icon-btn" id="themeBtn" aria-label="Toggle theme" title="Toggle theme">🌙</button>
         <button class="icon-btn" id="settingsBtn" aria-label="Settings" title="Settings">⚙️</button>
@@ -358,6 +363,11 @@ const TEAM = [
 const HISTORY_MAX = 20;
 const PIN_HASH = '98ca704e9149ca345fd5ba5635fe62eaddccb3b1be85cef15a3567981b154aa0'; // SHA-256 of the PIN
 const UNLOCK_KEY = 'lifehub_unlocked';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzH6QCkdb1SPd8PxfXAMvSKbvn6_AQWInCtZlSeiVpMt3EOtXqaltdMrXVDBLmGjGlJ/exec';
+const SYNC_KEY = 'lifehub_sync_v1';
+const TOKEN_KEY = 'lifehub_token';
+const POLL_MS = 15000;
+const UNLOCK_MS = 30 * 60 * 1000;
 const EDIT_ACTIONS = new Set(['status','edit-task','del-task','qadha-minus','qadha-plus','qadha-edit','qadha-set-all','undo','import','edit-quran','del-quran','edit-dars','del-dars']);
 
 /* ================= HELPERS ================= */
@@ -398,7 +408,8 @@ function normalize(raw){
       item: String(t.item ?? '').slice(0, 500),
       remark: String(t.remark ?? '').slice(0, 500),
       status: ['pending','done','fail'].includes(t.status) ? t.status : 'pending',
-      createdAt: Number(t.createdAt) || Date.now()
+      createdAt: Number(t.createdAt) || Date.now(),
+      updatedAt: Number(t.updatedAt) || 0
     }));
   }
   if (Array.isArray(raw.quran)) {
@@ -407,7 +418,8 @@ function normalize(raw){
       date: validDate(q.date) ? q.date : todayStr(),
       page: Math.min(604, Math.max(1, toInt(q.page) || 1)),
       remark: String(q.remark ?? '').slice(0, 300),
-      createdAt: Number(q.createdAt) || Date.now()
+      createdAt: Number(q.createdAt) || Date.now(),
+      updatedAt: Number(q.updatedAt) || 0
     }));
   }
   if (Array.isArray(raw.dars)) {
@@ -416,7 +428,8 @@ function normalize(raw){
       date: validDate(d.date) ? d.date : todayStr(),
       event: String(d.event ?? '').slice(0, 200),
       note: String(d.note ?? '').slice(0, 3000),
-      createdAt: Number(d.createdAt) || Date.now()
+      createdAt: Number(d.createdAt) || Date.now(),
+      updatedAt: Number(d.updatedAt) || 0
     }));
   }
   if (raw.qadha && typeof raw.qadha === 'object') {
@@ -439,6 +452,7 @@ function load(){
 }
 let state = load();
 function save(){
+  Sync.capture();
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
   catch { toast('⚠️ Failed to save data (storage full?)'); }
 }
@@ -475,6 +489,7 @@ function closeModal(){
   $('#modal').innerHTML = '';
   if (typeof modalCleanup === 'function') modalCleanup();
   modalCleanup = null;
+  Sync.onModalClosed();
 }
 $('#overlay').addEventListener('click', e => { if (e.target.id === 'overlay') closeModal(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#overlay').classList.contains('show')) closeModal(); });
@@ -499,9 +514,12 @@ function confirmDialog({ title, message, okLabel='Yes', danger=false }){
 
 /* ================= PIN LOCK ================= */
 let pinFails = 0, pinBlockedUntil = 0;
-const isUnlocked = () => { try { return sessionStorage.getItem(UNLOCK_KEY) === '1'; } catch { return false; } };
+const isUnlocked = () => { try { return Number(sessionStorage.getItem(UNLOCK_KEY)) > Date.now(); } catch { return false; } };
 function setUnlocked(v){
-  try { v ? sessionStorage.setItem(UNLOCK_KEY, '1') : sessionStorage.removeItem(UNLOCK_KEY); } catch {}
+  try {
+    if (v) sessionStorage.setItem(UNLOCK_KEY, String(Date.now() + UNLOCK_MS));
+    else { sessionStorage.removeItem(UNLOCK_KEY); clearToken(); Sync.setPin(null); }
+  } catch {}
   renderLock();
 }
 async function sha256(t){
@@ -534,11 +552,19 @@ function requirePin(onOk){
         if (now < pinBlockedUntil) { err.textContent = `Too many attempts. Try again in ${Math.ceil((pinBlockedUntil - now) / 1000)}s.`; inp.value = ''; return; }
         if (!/^\d{4}$/.test(inp.value)) { err.textContent = 'PIN must be 4 digits.'; return; }
         busy = true;
-        const ok = (await sha256(inp.value)) === PIN_HASH;
+        const pin = inp.value;
+        let res = null;
+        if (API_URL && navigator.onLine) { err.textContent = 'Checking…'; try { res = await api.post({ action:'auth', pin }); } catch { res = null; } }
+        if (res && res.code === 'LOCKED') { busy = false; inp.value = ''; err.textContent = res.msg || 'Too many attempts. Try again later.'; return; }
+        let ok;
+        if (res) { ok = !!res.ok; if (ok) saveToken(res.token); }
+        else ok = (await sha256(pin)) === PIN_HASH;
         busy = false;
         if (ok) {
-          pinFails = 0; setUnlocked(true); closeModal(); toast('🔓 Unlocked for this session');
+          Sync.setPin(pin);
+          pinFails = 0; setUnlocked(true); closeModal(); toast('🔓 Unlocked for 30 minutes');
           if (onOk) onOk();
+          Sync.flush();
         } else {
           pinFails++; inp.value = '';
           if (pinFails >= 5) { pinFails = 0; pinBlockedUntil = Date.now() + 30000; err.textContent = 'Too many attempts. Try again in 30s.'; }
@@ -556,6 +582,183 @@ $('#lockBtn').onclick = () => {
   if (isUnlocked()) { setUnlocked(false); toast('🔒 Locked. View only'); }
   else requirePin();
 };
+
+/* ================= CLOUD SYNC ================= */
+function readToken(){ try { const t = JSON.parse(sessionStorage.getItem(TOKEN_KEY)); if (t && t.exp > Date.now()) return t.token; } catch {} return null; }
+function saveToken(token){ try { sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ token, exp: Date.now() + 29 * 60 * 1000 })); } catch {} }
+function clearToken(){ try { sessionStorage.removeItem(TOKEN_KEY); } catch {} }
+const api = {
+  async call(url, opts){
+    const c = new AbortController(); const tm = setTimeout(() => c.abort(), 25000);
+    try { const r = await fetch(url, { ...opts, credentials:'omit', redirect:'follow', signal:c.signal }); return await r.json(); }
+    finally { clearTimeout(tm); }
+  },
+  get(action){ return this.call(`${API_URL}?action=${action}&_=${Date.now()}`, {}); },
+  post(body){ return this.call(API_URL, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body: JSON.stringify(body) }); }
+};
+const Sync = (() => {
+  let meta = loadMeta();
+  let inflight = false, status = 'local', memPin = null, deferred = false, loopStarted = false;
+  function loadMeta(){
+    try { const m = JSON.parse(localStorage.getItem(SYNC_KEY)); if (m && typeof m === 'object') return { base: m.base || null, queue: Array.isArray(m.queue) ? m.queue : [], rev: m.rev || 0 }; } catch {}
+    return { base:null, queue:[], rev:0 };
+  }
+  function persist(){ try { localStorage.setItem(SYNC_KEY, JSON.stringify(meta)); } catch {} }
+  const dataOf = st => clone({ tasks:st.tasks, quran:st.quran, dars:st.dars, qadha:st.qadha, history:st.history });
+  const recKey = r => { const { updatedAt, ...rest } = r; return JSON.stringify(rest); };
+  function setStatus(x){ status = x; renderBadge(); }
+  function renderBadge(){
+    const b = $('#syncBadge'); if (!b) return;
+    const M = { ok:['ok','✓','Synced'], busy:['busy','⟳','Syncing'], offline:['warn','⚠','Offline'], pending:['warn','🔒','Unlock to sync'], local:['warn','⚠','Not synced'], error:['warn','⚠','Sync error'] };
+    const [cls, ic, txt] = M[status] || M.local;
+    const q = meta.queue.length;
+    b.className = 'sync-badge ' + cls;
+    b.innerHTML = `${ic} <span class="t">${txt}${q && status !== 'busy' && status !== 'ok' ? ` (${q})` : ''}</span>`;
+    b.title = txt + (q ? ` · ${q} change(s) waiting to upload` : '') + '. Tap to sync now.';
+  }
+  function capture(){
+    if (!meta.base) return;
+    const now = Date.now(), ops = [];
+    ['tasks','quran','dars'].forEach(t => {
+      const bm = new Map((meta.base[t] || []).map(r => [r.id, r]));
+      state[t].forEach(r => {
+        const b = bm.get(r.id);
+        if (!b || recKey(b) !== recKey(r)) { r.updatedAt = now; ops.push({ type:'upsert', table:t, rec:{ ...r } }); }
+        bm.delete(r.id);
+      });
+      bm.forEach(b => ops.push({ type:'upsert', table:t, rec:{ ...b, deleted:1, updatedAt:now } }));
+    });
+    PRAYERS.forEach(p => {
+      const a = state.qadha[p.id], b = (meta.base.qadha || {})[p.id] || {};
+      if (a.initial !== b.initial || a.remaining !== b.remaining) ops.push({ type:'qadha', prayer:p.id, initial:a.initial, remaining:a.remaining, updatedAt:now });
+    });
+    if (JSON.stringify(state.history) !== JSON.stringify(meta.base.history || [])) ops.push({ type:'history', history:state.history, updatedAt:now });
+    if (!ops.length) return;
+    meta.queue.push(...ops);
+    meta.base = dataOf(state);
+    persist(); renderBadge();
+    setTimeout(flush, 30);
+  }
+  async function getToken(){
+    const t = readToken(); if (t) return t;
+    if (memPin) {
+      try { const r = await api.post({ action:'auth', pin:memPin }); if (r && r.ok) { saveToken(r.token); return r.token; } if (r && r.code === 'PIN') memPin = null; } catch {}
+    }
+    return null;
+  }
+  function applyServer(data){
+    if (!data) return false;
+    if ($('#overlay').classList.contains('show')) { deferred = true; return false; }
+    deferred = false;
+    state = normalize({ ...data, settings: state.settings });
+    meta.base = dataOf(state); persist();
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
+    refresh();
+    return true;
+  }
+  async function flush(){
+    if (inflight || !meta.base || !meta.queue.length) return;
+    if (!navigator.onLine) { setStatus('offline'); return; }
+    inflight = true; setStatus('busy');
+    try {
+      let last = null, tries = 0;
+      while (meta.queue.length && tries < 20) {
+        tries++;
+        const token = await getToken();
+        if (!token) { setStatus('pending'); return; }
+        const ops = meta.queue.slice(0, 150);
+        const r = await api.post({ action:'push', token, ops });
+        if (r && r.code === 'AUTH') { clearToken(); if (memPin) continue; setStatus('pending'); return; }
+        if (!r || !r.ok) { setStatus('error'); return; }
+        meta.queue.splice(0, ops.length); persist();
+        last = r;
+      }
+      if (last && !meta.queue.length) { if (applyServer(last.data)) meta.rev = last.rev; persist(); }
+      setStatus(meta.queue.length ? 'pending' : 'ok');
+    } catch { setStatus(navigator.onLine ? 'error' : 'offline'); }
+    finally { inflight = false; renderBadge(); }
+  }
+  async function pull(force){
+    if (inflight || !meta.base) return;
+    if (meta.queue.length) return flush();
+    if (!navigator.onLine) { setStatus('offline'); return; }
+    inflight = true;
+    try {
+      const r = await api.get('rev');
+      if (!r || !r.ok) { setStatus('error'); return; }
+      if (force || deferred || r.rev !== meta.rev) {
+        const all = await api.get('getAll');
+        if (!all || !all.ok) { setStatus('error'); return; }
+        if (meta.queue.length) { setTimeout(flush, 30); return; }
+        if (applyServer(all.data)) { meta.rev = all.rev; persist(); }
+      }
+      setStatus('ok');
+    } catch { setStatus(navigator.onLine ? 'error' : 'offline'); }
+    finally { inflight = false; }
+  }
+  function startLoop(){
+    if (loopStarted) return; loopStarted = true;
+    const tick = () => { if (document.visibilityState === 'visible') flush().then(() => pull()); };
+    setInterval(tick, POLL_MS);
+    document.addEventListener('visibilitychange', tick);
+    window.addEventListener('online', tick);
+    window.addEventListener('offline', () => setStatus('offline'));
+  }
+  const hasData = st => st.tasks.length || st.quran.length || st.dars.length || st.history.length || PRAYERS.some(p => st.qadha[p.id].initial > 0 || st.qadha[p.id].remaining > 0);
+  async function init(){
+    renderBadge();
+    if (!API_URL) { setStatus('local'); return; }
+    if (meta.base) { setStatus(meta.queue.length ? 'busy' : 'ok'); startLoop(); await flush(); await pull(true); return; }
+    let all;
+    try { setStatus('busy'); all = await api.get('getAll'); } catch { setStatus('offline'); setTimeout(init, POLL_MS); return; }
+    if (!all || !all.ok) { setStatus('error'); setTimeout(init, 30000); return; }
+    const server = normalize({ ...all.data, settings: state.settings });
+    meta.rev = all.rev;
+    if (!hasData(state)) {
+      state = server; meta.base = dataOf(server); persist();
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
+      refresh(); setStatus('ok'); startLoop(); return;
+    }
+    setStatus('local');
+    askUpload(server);
+  }
+  function askUpload(server){
+    const l = state, qTotal = PRAYERS.reduce((a,p) => a + l.qadha[p.id].remaining, 0);
+    openModal(`
+      <h3>📤 Sync this device's data?</h3>
+      <p class="desc">This device has data saved only here: <b>${l.tasks.length}</b> tasks, <b>${l.quran.length}</b> Quran entries, <b>${l.dars.length}</b> dars, qadha remaining <b>${qTotal}</b>${l.history.length ? ` and ${l.history.length} undo steps` : ''}.<br><br>Upload it so it appears on all your devices? It will be combined with anything already in the cloud.</p>
+      <div class="actions">
+        <button class="btn btn-ghost" data-m="later">Not now</button>
+        <button class="btn btn-primary" data-m="up">📤 Upload &amp; sync</button>
+      </div>`, m => {
+        m.querySelector('[data-m=later]').onclick = () => { closeModal(); toast('Not synced yet. Tap the ⚠ badge when ready.'); };
+        m.querySelector('[data-m=up]').onclick = () => { closeModal(); requirePin(() => upload(server)); };
+      });
+  }
+  function upload(server){
+    const merged = clone(server);
+    ['tasks','quran','dars'].forEach(t => {
+      const ids = new Set(merged[t].map(r => r.id));
+      state[t].forEach(r => { if (!ids.has(r.id)) merged[t].push(clone(r)); });
+    });
+    PRAYERS.forEach(p => { const q = merged.qadha[p.id]; if (!q.initial && !q.remaining) merged.qadha[p.id] = clone(state.qadha[p.id]); });
+    if (!merged.history.length) merged.history = clone(state.history);
+    merged.settings = state.settings;
+    meta.base = dataOf(server); persist();
+    state = merged;
+    save(); refresh(); startLoop();
+    toast('📤 Uploading your data…');
+  }
+  function onBadge(){
+    if (!API_URL) { toast('Cloud sync is not set up yet.'); return; }
+    if (!meta.base) { init(); return; }
+    if (meta.queue.length && !readToken() && !memPin) { requirePin(() => flush()); return; }
+    flush().then(() => pull(true)).then(() => { if (status === 'ok') toast('✓ Synced'); });
+  }
+  function onModalClosed(){ if (deferred) setTimeout(() => pull(true), 50); }
+  return { init, capture, flush, pull, onBadge, onModalClosed, renderBadge, setPin(p){ memPin = p; } };
+})();
+$('#syncBadge').onclick = () => Sync.onBadge();
 
 /* ================= THEME ================= */
 function applyTheme(){
@@ -1223,10 +1426,12 @@ setInterval(renderHero, 60000);
 /* ================= INIT ================= */
 applyTheme();
 renderLock();
+setInterval(renderLock, 30000);
 renderTeam();
 renderHero();
 renderTabs();
 mountSection();
+Sync.init();
 })();
 </script>
 </body>
