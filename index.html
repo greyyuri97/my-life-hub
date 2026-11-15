@@ -119,9 +119,9 @@ body{
 
 /* Forms */
 label.lbl{display:block;font-size:.72rem;font-weight:700;letter-spacing:.08em;color:var(--muted);margin-bottom:6px;text-transform:uppercase}
-input[type=text],input[type=date],input[type=number]{width:100%;font:inherit;font-size:1rem;color:var(--text);
+input[type=text],input[type=date],input[type=number],textarea{width:100%;font:inherit;font-size:1rem;color:var(--text);
   background:var(--input);border:1.5px solid var(--border);border-radius:12px;padding:11px 14px;outline:none;transition:border .2s,box-shadow .2s}
-input:focus{border-color:var(--emerald);box-shadow:0 0 0 4px var(--emerald-soft)}
+input:focus,textarea:focus{border-color:var(--emerald);box-shadow:0 0 0 4px var(--emerald-soft)}
 [data-theme="dark"] input{color-scheme:dark}
 .add-grid{display:grid;grid-template-columns:200px 130px 1fr auto;gap:12px;align-items:end}
 .day-chip{height:46px;display:flex;align-items:center;justify-content:center;border-radius:12px;font-weight:700;
@@ -252,6 +252,12 @@ footer .muted{color:var(--muted);font-size:.8rem;font-weight:600}
 @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
 .task.q-entry{border-left-color:var(--blue)}
 .q-remark{font-size:.88rem;color:var(--muted);margin-top:2px;word-break:break-word}
+textarea{resize:vertical;min-height:80px;line-height:1.5}
+.dars-grid{display:grid;grid-template-columns:200px 130px 1fr;gap:12px;align-items:end}
+.dars-grid .ds-full{grid-column:1/-1}
+.task.d-entry{border-left-color:#8B5CF6}
+.d-note{font-size:.9rem;color:var(--muted);margin-top:4px;white-space:pre-wrap;word-break:break-word}
+@media (max-width:760px){.dars-grid{grid-template-columns:1fr 1fr}.dars-grid .ds-event{grid-column:1/-1}.dars-grid .btn{width:100%}}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 
 @media (max-width:760px){
@@ -352,7 +358,7 @@ const TEAM = [
 const HISTORY_MAX = 20;
 const PIN_HASH = '98ca704e9149ca345fd5ba5635fe62eaddccb3b1be85cef15a3567981b154aa0'; // SHA-256 of the PIN
 const UNLOCK_KEY = 'lifehub_unlocked';
-const EDIT_ACTIONS = new Set(['status','edit-task','del-task','qadha-minus','qadha-plus','qadha-edit','qadha-set-all','undo','import','edit-quran','del-quran']);
+const EDIT_ACTIONS = new Set(['status','edit-task','del-task','qadha-minus','qadha-plus','qadha-edit','qadha-set-all','undo','import','edit-quran','del-quran','edit-dars','del-dars']);
 
 /* ================= HELPERS ================= */
 const $ = s => document.querySelector(s);
@@ -375,6 +381,7 @@ function defaultState(){
     version: 1,
     tasks: [],
     quran: [],
+    dars: [],
     qadha,
     history: [],
     settings: { theme: matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light', tab:'tasks', filter:'all', qadhaSetupDone:false }
@@ -389,6 +396,7 @@ function normalize(raw){
       id: t.id ? String(t.id) : uid(),
       date: validDate(t.date) ? t.date : todayStr(),
       item: String(t.item ?? '').slice(0, 500),
+      remark: String(t.remark ?? '').slice(0, 500),
       status: ['pending','done','fail'].includes(t.status) ? t.status : 'pending',
       createdAt: Number(t.createdAt) || Date.now()
     }));
@@ -400,6 +408,15 @@ function normalize(raw){
       page: Math.min(604, Math.max(1, toInt(q.page) || 1)),
       remark: String(q.remark ?? '').slice(0, 300),
       createdAt: Number(q.createdAt) || Date.now()
+    }));
+  }
+  if (Array.isArray(raw.dars)) {
+    s.dars = raw.dars.filter(d => d && typeof d === 'object').map(d => ({
+      id: d.id ? String(d.id) : uid(),
+      date: validDate(d.date) ? d.date : todayStr(),
+      event: String(d.event ?? '').slice(0, 200),
+      note: String(d.note ?? '').slice(0, 3000),
+      createdAt: Number(d.createdAt) || Date.now()
     }));
   }
   if (raw.qadha && typeof raw.qadha === 'object') {
@@ -599,11 +616,12 @@ const TaskModule = {
       <div class="section-title">
         <div><h2>📋 Daily Tasks</h2><p>Log your daily tasks and mark their status.</p></div>
       </div>
-      <form id="taskForm" class="add-grid" autocomplete="off">
+      <form id="taskForm" class="dars-grid" autocomplete="off">
         <div><label class="lbl" for="taskDate">Date</label><input type="date" id="taskDate" value="${t}" required></div>
         <div><label class="lbl">Day</label><div class="day-chip" id="taskDay">${dayName(t)}</div></div>
-        <div class="item-field"><label class="lbl" for="taskItem">Item</label><input type="text" id="taskItem" placeholder="What do you need to do today?" maxlength="500"></div>
-        <button class="btn btn-primary" type="submit">＋ Add</button>
+        <div class="ds-event"><label class="lbl" for="taskItem">Item</label><input type="text" id="taskItem" placeholder="What do you need to do today?" maxlength="500"></div>
+        <div class="ds-full"><label class="lbl" for="taskRemark">Remark</label><input type="text" id="taskRemark" placeholder="Optional, e.g. bring receipt, call before 3pm" maxlength="500"></div>
+        <div class="ds-full" style="text-align:right"><button class="btn btn-primary" type="submit">＋ Add</button></div>
       </form>
       <div class="filters" id="filters"></div>
       <div class="task-list" id="taskList"></div>`;
@@ -616,9 +634,11 @@ const TaskModule = {
       const date = dateEl.value;
       if (!validDate(date)) { toast('Please pick a valid date.'); return; }
       if (!item) { toast('Please enter an item first.'); el.querySelector('#taskItem').focus(); return; }
-      state.tasks.push({ id:uid(), date, item, status:'pending', createdAt:Date.now() });
+      const remark = el.querySelector('#taskRemark').value.trim();
+      state.tasks.push({ id:uid(), date, item, remark, status:'pending', createdAt:Date.now() });
       save();
       el.querySelector('#taskItem').value = '';
+      el.querySelector('#taskRemark').value = '';
       el.querySelector('#taskItem').focus();
       if (state.settings.filter !== 'all' && state.settings.filter !== 'pending') state.settings.filter = 'all';
       refresh();
@@ -660,6 +680,7 @@ const TaskModule = {
           <div>
             <div class="task-meta">${dayName(x.date)} · ${fmtDate(x.date)} ${x.date===t?'<span class="today-tag">TODAY</span>':''}</div>
             <div class="task-text">${esc(x.item)}</div>
+            ${x.remark ? `<div class="q-remark">💬 ${esc(x.remark)}</div>` : ''}
           </div>
           <span class="badge ${bc}">${bl}</span>
           <div class="task-actions">
@@ -697,6 +718,7 @@ function editTask(id){
       <div><label class="lbl">Day</label><div class="day-chip" id="eDay">${dayName(t.date)}</div></div>
     </div>
     <div class="field"><label class="lbl" for="eItem">Item</label><input type="text" id="eItem" value="${esc(t.item)}" maxlength="500"></div>
+    <div class="field"><label class="lbl" for="eRemark">Remark</label><input type="text" id="eRemark" value="${esc(t.remark)}" maxlength="500" placeholder="Optional"></div>
     <div class="field"><label class="lbl">Status</label>
       <div style="display:flex;gap:6px;flex-wrap:wrap" id="eStatus">
         ${[['pending','Pending'],['done','Done'],['fail','Unsuccessful']].map(([k,l]) =>
@@ -719,7 +741,7 @@ function editTask(id){
         const item = m.querySelector('#eItem').value.trim();
         if (!validDate(d.value)) { m.querySelector('#eErr').textContent = 'Invalid date.'; return; }
         if (!item) { m.querySelector('#eErr').textContent = 'Item cannot be empty.'; return; }
-        Object.assign(t, { date:d.value, item, status });
+        Object.assign(t, { date:d.value, item, remark: m.querySelector('#eRemark').value.trim(), status });
         save(); closeModal(); refresh(); toast('💾 Task updated');
       };
       m.querySelector('[data-m=cancel]').onclick = closeModal;
@@ -987,9 +1009,120 @@ async function deleteQuran(id){
   toast('🗑️ Reading deleted', { label:'Undo', onClick(){ state.quran.splice(Math.min(idx, state.quran.length), 0, x); save(); refresh(); } });
 }
 
+/* ================= MODULE: DARS SYEIKHUNA ================= */
+const DarsModule = {
+  id:'dars', label:'Dars Syeikhuna', icon:'🎓',
+  mount(el){
+    const t = todayStr();
+    el.innerHTML = `
+      <div class="section-title">
+        <div><h2>🎓 Dars Syeikhuna</h2><p>Record each dars you attend and your notes.</p></div>
+      </div>
+      <div class="card summary" id="dsSummary"></div>
+      <form id="darsForm" class="dars-grid" autocomplete="off">
+        <div><label class="lbl" for="dsDate">Date</label><input type="date" id="dsDate" value="${t}" required></div>
+        <div><label class="lbl">Day</label><div class="day-chip" id="dsDay">${dayName(t)}</div></div>
+        <div class="ds-event"><label class="lbl" for="dsEvent">Event</label><input type="text" id="dsEvent" placeholder="e.g. Kuliah Kitab Hikam" maxlength="200"></div>
+        <div class="ds-full"><label class="lbl" for="dsNote">Catatan</label><textarea id="dsNote" rows="3" placeholder="Key points, kitab, page, reminders..." maxlength="3000"></textarea></div>
+        <div class="ds-full" style="text-align:right"><button class="btn btn-primary" type="submit">＋ Add</button></div>
+      </form>
+      <div class="task-list" id="darsList" style="margin-top:16px"></div>`;
+    const dateEl = el.querySelector('#dsDate');
+    dateEl.addEventListener('input', () => { el.querySelector('#dsDay').textContent = dayName(dateEl.value); });
+    el.querySelector('#darsForm').addEventListener('submit', e => {
+      e.preventDefault();
+      requirePin(() => {
+        const date = dateEl.value;
+        const event = el.querySelector('#dsEvent').value.trim();
+        const note = el.querySelector('#dsNote').value.trim();
+        if (!validDate(date)) { toast('Please pick a valid date.'); return; }
+        if (!event) { toast('Please enter the event first.'); el.querySelector('#dsEvent').focus(); return; }
+        state.dars.push({ id:uid(), date, event, note, createdAt:Date.now() });
+        save();
+        el.querySelector('#dsEvent').value = '';
+        el.querySelector('#dsNote').value = '';
+        refresh();
+        toast('🎓 Dars recorded');
+      });
+    });
+    this.update();
+  },
+  update(){
+    const sum = $('#dsSummary'), list = $('#darsList');
+    if (!sum) return;
+    const t = todayStr();
+    const rows = state.dars.slice().sort((a,b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
+    const month = t.slice(0, 7);
+    const thisMonth = state.dars.filter(x => x.date.slice(0, 7) === month).length;
+    const last = rows[0];
+    sum.innerHTML = `
+      <div>
+        <div style="font-size:.72rem;font-weight:700;letter-spacing:.08em;color:var(--muted);text-transform:uppercase">Dars Attended</div>
+        <div class="big">${state.dars.length} <span>${state.dars.length === 1 ? 'session' : 'sessions'}</span></div>
+      </div>
+      <div class="acts">
+        <span class="chip green">📅 <b>${thisMonth}</b> this month</span>
+      </div>
+      <div class="sub" style="grid-column:1/-1;margin-top:-4px">${last ? `Last dars: ${dayName(last.date)}, ${fmtDate(last.date)} · ${esc(last.event)}` : 'No dars recorded yet.'}</div>`;
+    if (!rows.length) {
+      list.innerHTML = `<div class="empty"><img src="${SPRITE(360)}" alt="" data-id="360" data-name="Wynaut" data-color="#38BDF8"><p>No dars recorded yet.</p></div>`;
+      const img = list.querySelector('img'); if (img) attachSpriteFallback(img);
+      return;
+    }
+    list.innerHTML = rows.map(x => `
+      <div class="task d-entry ${x.date===t?'is-today':''}">
+        <div>
+          <div class="task-meta">${dayName(x.date)} · ${fmtDate(x.date)} ${x.date===t?'<span class="today-tag">TODAY</span>':''}</div>
+          <div class="task-text">🎓 ${esc(x.event)}</div>
+          ${x.note ? `<div class="d-note">${esc(x.note)}</div>` : ''}
+        </div>
+        <div class="task-actions">
+          <button class="btn btn-icon" data-action="edit-dars" data-id="${x.id}" aria-label="Edit" title="Edit">✏️</button>
+          <button class="btn btn-icon del" data-action="del-dars" data-id="${x.id}" aria-label="Delete" title="Delete">🗑️</button>
+        </div>
+      </div>`).join('');
+  }
+};
+function editDars(id){
+  const x = state.dars.find(d => d.id === id); if (!x) return;
+  openModal(`
+    <h3>✏️ Edit Dars</h3>
+    <p class="desc">Update the date, event or catatan.</p>
+    <div class="field" style="display:grid;grid-template-columns:1fr 120px;gap:10px;align-items:end">
+      <div><label class="lbl" for="deDate">Date</label><input type="date" id="deDate" value="${x.date}"></div>
+      <div><label class="lbl">Day</label><div class="day-chip" id="deDay">${dayName(x.date)}</div></div>
+    </div>
+    <div class="field"><label class="lbl" for="deEvent">Event</label><input type="text" id="deEvent" value="${esc(x.event)}" maxlength="200"></div>
+    <div class="field"><label class="lbl" for="deNote">Catatan</label><textarea id="deNote" rows="5" maxlength="3000">${esc(x.note)}</textarea></div>
+    <div class="err" id="deErr"></div>
+    <div class="actions">
+      <button class="btn btn-ghost" data-m="cancel">Cancel</button>
+      <button class="btn btn-primary" data-m="save">Save</button>
+    </div>`, m => {
+      const d = m.querySelector('#deDate');
+      d.addEventListener('input', () => m.querySelector('#deDay').textContent = dayName(d.value));
+      m.querySelector('[data-m=cancel]').onclick = closeModal;
+      m.querySelector('[data-m=save]').onclick = () => {
+        const event = m.querySelector('#deEvent').value.trim();
+        if (!validDate(d.value)) { m.querySelector('#deErr').textContent = 'Invalid date.'; return; }
+        if (!event) { m.querySelector('#deErr').textContent = 'Event cannot be empty.'; return; }
+        Object.assign(x, { date:d.value, event, note: m.querySelector('#deNote').value.trim() });
+        save(); closeModal(); refresh(); toast('💾 Dars updated');
+      };
+    });
+}
+async function deleteDars(id){
+  const x = state.dars.find(d => d.id === id); if (!x) return;
+  const ok = await confirmDialog({ title:'Delete dars?', message:`"${x.event}" on ${fmtDate(x.date)} will be permanently deleted.`, okLabel:'Delete', danger:true });
+  if (!ok) return;
+  const idx = state.dars.indexOf(x);
+  state.dars.splice(idx, 1); save(); refresh();
+  toast('🗑️ Dars deleted', { label:'Undo', onClick(){ state.dars.splice(Math.min(idx, state.dars.length), 0, x); save(); refresh(); } });
+}
+
 /* ================= MODULE REGISTRY ================= */
 // To add a new section later: create an object with { id, label, icon, mount(el), update() } and push it here.
-const MODULES = [TaskModule, QuranModule, QadhaModule];
+const MODULES = [TaskModule, QuranModule, DarsModule, QadhaModule];
 const COMING_SOON = ['Finance', 'Reading'];
 
 function currentModule(){ return MODULES.find(m => m.id === state.settings.tab) || MODULES[0]; }
@@ -1018,7 +1151,7 @@ $('#importFile').addEventListener('change', async e => {
   let raw;
   try { raw = JSON.parse(await file.text()); }
   catch { toast('⚠️ Invalid file (not JSON).'); return; }
-  if (!raw || (!Array.isArray(raw.tasks) && !Array.isArray(raw.quran) && !raw.qadha)) { toast("⚠️ This file isn't a My Life Hub backup."); return; }
+  if (!raw || (!Array.isArray(raw.tasks) && !Array.isArray(raw.quran) && !Array.isArray(raw.dars) && !raw.qadha)) { toast("⚠️ This file isn't a My Life Hub backup."); return; }
   const n = Array.isArray(raw.tasks) ? raw.tasks.length : 0;
   const ok = await confirmDialog({ title:'Import data?', message:`Your current data will be replaced with this backup (${n} tasks). Continue?`, okLabel:'Import', danger:true });
   if (!ok) return;
@@ -1068,6 +1201,8 @@ document.addEventListener('click', e => {
     case 'del-task': deleteTask(el.dataset.id); break;
     case 'edit-quran': editQuran(el.dataset.id); break;
     case 'del-quran': deleteQuran(el.dataset.id); break;
+    case 'edit-dars': editDars(el.dataset.id); break;
+    case 'del-dars': deleteDars(el.dataset.id); break;
     case 'qadha-minus': qadhaMinus(el.dataset.p); break;
     case 'qadha-plus': qadhaPlus(el.dataset.p); break;
     case 'qadha-edit': openQadhaSetup([el.dataset.p], false); break;
