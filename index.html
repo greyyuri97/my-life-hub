@@ -250,6 +250,8 @@ footer .muted{color:var(--muted);font-size:.8rem;font-weight:600}
 .pin-input{text-align:center;letter-spacing:.7em;font-size:1.6rem!important;font-weight:800}
 .shake{animation:shake .35s}
 @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+.task.q-entry{border-left-color:var(--blue)}
+.q-remark{font-size:.88rem;color:var(--muted);margin-top:2px;word-break:break-word}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 
 @media (max-width:760px){
@@ -350,7 +352,7 @@ const TEAM = [
 const HISTORY_MAX = 20;
 const PIN_HASH = '98ca704e9149ca345fd5ba5635fe62eaddccb3b1be85cef15a3567981b154aa0'; // SHA-256 of the PIN
 const UNLOCK_KEY = 'lifehub_unlocked';
-const EDIT_ACTIONS = new Set(['status','edit-task','del-task','qadha-minus','qadha-plus','qadha-edit','qadha-set-all','undo','import']);
+const EDIT_ACTIONS = new Set(['status','edit-task','del-task','qadha-minus','qadha-plus','qadha-edit','qadha-set-all','undo','import','edit-quran','del-quran']);
 
 /* ================= HELPERS ================= */
 const $ = s => document.querySelector(s);
@@ -372,6 +374,7 @@ function defaultState(){
   return {
     version: 1,
     tasks: [],
+    quran: [],
     qadha,
     history: [],
     settings: { theme: matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light', tab:'tasks', filter:'all', qadhaSetupDone:false }
@@ -388,6 +391,15 @@ function normalize(raw){
       item: String(t.item ?? '').slice(0, 500),
       status: ['pending','done','fail'].includes(t.status) ? t.status : 'pending',
       createdAt: Number(t.createdAt) || Date.now()
+    }));
+  }
+  if (Array.isArray(raw.quran)) {
+    s.quran = raw.quran.filter(q => q && typeof q === 'object').map(q => ({
+      id: q.id ? String(q.id) : uid(),
+      date: validDate(q.date) ? q.date : todayStr(),
+      page: Math.min(604, Math.max(1, toInt(q.page) || 1)),
+      remark: String(q.remark ?? '').slice(0, 300),
+      createdAt: Number(q.createdAt) || Date.now()
     }));
   }
   if (raw.qadha && typeof raw.qadha === 'object') {
@@ -570,9 +582,11 @@ function renderHero(){
   const pending = state.tasks.filter(x => x.status === 'pending').length;
   const doneToday = state.tasks.filter(x => x.status === 'done' && x.date === t).length;
   const baki = PRAYERS.reduce((a,p) => a + state.qadha[p.id].remaining, 0);
+  const lastQ = state.quran.slice().sort((a,b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt)[0];
   $('#stats').innerHTML = `
     <span class="chip amber">⏳ <b>${pending}</b> pending tasks</span>
     <span class="chip green">✅ <b>${doneToday}</b> done today</span>
+    <span class="chip green">📖 Last page: <b>${lastQ ? lastQ.page : 0}</b></span>
     <span class="chip blue">🕌 Qadha remaining: <b>${baki.toLocaleString('en-US')}</b></span>`;
 }
 
@@ -717,11 +731,11 @@ function editTask(id){
 /* ================= MODULE: QADHA ================= */
 let bumpId = null;
 const QadhaModule = {
-  id:'qadha', label:'Qadha Prayer Tracker', icon:'🕌',
+  id:'qadha', label:'Qadha Prayer', icon:'🕌',
   mount(el){
     el.innerHTML = `
       <div class="section-title">
-        <div><h2>🕌 Qadha Prayer Tracker</h2><p>Track your remaining qadha prayers. Little by little, insyaAllah.</p></div>
+        <div><h2>🕌 Qadha Prayer</h2><p>Track your remaining qadha prayers. Little by little, insyaAllah.</p></div>
       </div>
       <div class="card summary" id="qSummary"></div>
       <div class="prayer-grid" id="qGrid"></div>`;
@@ -858,9 +872,124 @@ function openQadhaSetup(ids, firstTime){
     });
 }
 
+/* ================= MODULE: QURAN DAILY ================= */
+const QURAN_PAGES = 604;
+const QuranModule = {
+  id:'quran', label:'Quran Daily', icon:'📖',
+  mount(el){
+    const t = todayStr();
+    el.innerHTML = `
+      <div class="section-title">
+        <div><h2>📖 Quran Daily</h2><p>Log your daily Quran reading, one page at a time.</p></div>
+      </div>
+      <div class="card summary" id="qrSummary"></div>
+      <form id="quranForm" class="add-grid" autocomplete="off">
+        <div><label class="lbl" for="qrDate">Date</label><input type="date" id="qrDate" value="${t}" required></div>
+        <div><label class="lbl" for="qrPage">Page</label><input type="number" id="qrPage" inputmode="numeric" min="1" max="${QURAN_PAGES}" placeholder="1–604"></div>
+        <div class="item-field"><label class="lbl" for="qrRemark">Remark</label><input type="text" id="qrRemark" placeholder="e.g. Surah Al-Kahf, after Subuh" maxlength="300"></div>
+        <button class="btn btn-primary" type="submit">＋ Add</button>
+      </form>
+      <div class="task-list" id="quranList" style="margin-top:16px"></div>`;
+    el.querySelector('#quranForm').addEventListener('submit', e => {
+      e.preventDefault();
+      requirePin(() => {
+        const date = el.querySelector('#qrDate').value;
+        const page = toInt(el.querySelector('#qrPage').value);
+        const remark = el.querySelector('#qrRemark').value.trim();
+        if (!validDate(date)) { toast('Please pick a valid date.'); return; }
+        if (isNaN(page) || page < 1 || page > QURAN_PAGES) { toast(`Page must be 1 to ${QURAN_PAGES}.`); el.querySelector('#qrPage').focus(); return; }
+        state.quran.push({ id:uid(), date, page, remark, createdAt:Date.now() });
+        save();
+        el.querySelector('#qrPage').value = '';
+        el.querySelector('#qrRemark').value = '';
+        refresh();
+        toast('📖 Reading logged');
+      });
+    });
+    this.update();
+  },
+  update(){
+    const sum = $('#qrSummary'), list = $('#quranList');
+    if (!sum) return;
+    const t = todayStr();
+    const rows = state.quran.slice().sort((a,b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
+    const last = rows[0];
+    const lastPage = last ? last.page : 0;
+    const pct = Math.round(lastPage / QURAN_PAGES * 100);
+    const dates = new Set(state.quran.map(x => x.date));
+    let streak = 0;
+    const d = parseDate(t);
+    if (!dates.has(t)) d.setDate(d.getDate() - 1);
+    while (dates.has(`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`)) { streak++; d.setDate(d.getDate() - 1); }
+    sum.innerHTML = `
+      <div>
+        <div style="font-size:.72rem;font-weight:700;letter-spacing:.08em;color:var(--muted);text-transform:uppercase">Last Page Read</div>
+        <div class="big">${lastPage} <span>/ ${QURAN_PAGES}</span></div>
+      </div>
+      <div class="acts">
+        <span class="chip green">🔥 <b>${streak}</b> day streak</span>
+        <span class="chip blue">📅 <b>${dates.size}</b> days logged</span>
+      </div>
+      <div class="bar"><i style="width:${pct}%"></i></div>
+      <div class="sub" style="grid-column:1/-1;margin-top:-4px">${pct}% through the mushaf${last ? ` · last logged ${fmtDate(last.date)}` : ''}</div>`;
+    if (!rows.length) {
+      list.innerHTML = `<div class="empty"><img src="${SPRITE(360)}" alt="" data-id="360" data-name="Wynaut" data-color="#38BDF8"><p>No reading logged yet. Bismillah!</p></div>`;
+      const img = list.querySelector('img'); if (img) attachSpriteFallback(img);
+      return;
+    }
+    list.innerHTML = rows.map(x => `
+      <div class="task q-entry ${x.date===t?'is-today':''}">
+        <div>
+          <div class="task-meta">${dayName(x.date)} · ${fmtDate(x.date)} ${x.date===t?'<span class="today-tag">TODAY</span>':''}</div>
+          <div class="task-text">📖 Page ${x.page}</div>
+          ${x.remark ? `<div class="q-remark">${esc(x.remark)}</div>` : ''}
+        </div>
+        <div class="task-actions">
+          <button class="btn btn-icon" data-action="edit-quran" data-id="${x.id}" aria-label="Edit" title="Edit">✏️</button>
+          <button class="btn btn-icon del" data-action="del-quran" data-id="${x.id}" aria-label="Delete" title="Delete">🗑️</button>
+        </div>
+      </div>`).join('');
+  }
+};
+function editQuran(id){
+  const x = state.quran.find(q => q.id === id); if (!x) return;
+  openModal(`
+    <h3>✏️ Edit Reading</h3>
+    <p class="desc">Update the date, page or remark.</p>
+    <div class="field" style="display:grid;grid-template-columns:1fr 120px;gap:10px;align-items:end">
+      <div><label class="lbl" for="qeDate">Date</label><input type="date" id="qeDate" value="${x.date}"></div>
+      <div><label class="lbl" for="qePage">Page</label><input type="number" id="qePage" inputmode="numeric" min="1" max="${QURAN_PAGES}" value="${x.page}"></div>
+    </div>
+    <div class="field"><label class="lbl" for="qeRemark">Remark</label><input type="text" id="qeRemark" value="${esc(x.remark)}" maxlength="300"></div>
+    <div class="err" id="qeErr"></div>
+    <div class="actions">
+      <button class="btn btn-ghost" data-m="cancel">Cancel</button>
+      <button class="btn btn-primary" data-m="save">Save</button>
+    </div>`, m => {
+      const doSave = () => {
+        const date = m.querySelector('#qeDate').value, page = toInt(m.querySelector('#qePage').value);
+        if (!validDate(date)) { m.querySelector('#qeErr').textContent = 'Invalid date.'; return; }
+        if (isNaN(page) || page < 1 || page > QURAN_PAGES) { m.querySelector('#qeErr').textContent = `Page must be 1 to ${QURAN_PAGES}.`; return; }
+        Object.assign(x, { date, page, remark: m.querySelector('#qeRemark').value.trim() });
+        save(); closeModal(); refresh(); toast('💾 Reading updated');
+      };
+      m.querySelector('[data-m=cancel]').onclick = closeModal;
+      m.querySelector('[data-m=save]').onclick = doSave;
+      m.querySelector('#qeRemark').addEventListener('keydown', e => { if (e.key === 'Enter') doSave(); });
+    });
+}
+async function deleteQuran(id){
+  const x = state.quran.find(q => q.id === id); if (!x) return;
+  const ok = await confirmDialog({ title:'Delete reading?', message:`Page ${x.page} on ${fmtDate(x.date)} will be permanently deleted.`, okLabel:'Delete', danger:true });
+  if (!ok) return;
+  const idx = state.quran.indexOf(x);
+  state.quran.splice(idx, 1); save(); refresh();
+  toast('🗑️ Reading deleted', { label:'Undo', onClick(){ state.quran.splice(Math.min(idx, state.quran.length), 0, x); save(); refresh(); } });
+}
+
 /* ================= MODULE REGISTRY ================= */
 // To add a new section later: create an object with { id, label, icon, mount(el), update() } and push it here.
-const MODULES = [TaskModule, QadhaModule];
+const MODULES = [TaskModule, QuranModule, QadhaModule];
 const COMING_SOON = ['Finance', 'Reading'];
 
 function currentModule(){ return MODULES.find(m => m.id === state.settings.tab) || MODULES[0]; }
@@ -889,7 +1018,7 @@ $('#importFile').addEventListener('change', async e => {
   let raw;
   try { raw = JSON.parse(await file.text()); }
   catch { toast('⚠️ Invalid file (not JSON).'); return; }
-  if (!raw || (!Array.isArray(raw.tasks) && !raw.qadha)) { toast("⚠️ This file isn't a My Life Hub backup."); return; }
+  if (!raw || (!Array.isArray(raw.tasks) && !Array.isArray(raw.quran) && !raw.qadha)) { toast("⚠️ This file isn't a My Life Hub backup."); return; }
   const n = Array.isArray(raw.tasks) ? raw.tasks.length : 0;
   const ok = await confirmDialog({ title:'Import data?', message:`Your current data will be replaced with this backup (${n} tasks). Continue?`, okLabel:'Import', danger:true });
   if (!ok) return;
@@ -937,6 +1066,8 @@ document.addEventListener('click', e => {
     case 'status': setTaskStatus(el.dataset.id, el.dataset.s); break;
     case 'edit-task': editTask(el.dataset.id); break;
     case 'del-task': deleteTask(el.dataset.id); break;
+    case 'edit-quran': editQuran(el.dataset.id); break;
+    case 'del-quran': deleteQuran(el.dataset.id); break;
     case 'qadha-minus': qadhaMinus(el.dataset.p); break;
     case 'qadha-plus': qadhaPlus(el.dataset.p); break;
     case 'qadha-edit': openQadhaSetup([el.dataset.p], false); break;
