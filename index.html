@@ -247,6 +247,15 @@ footer .muted{color:var(--muted);font-size:.8rem;font-weight:600}
 .toast button{border:0;background:var(--emerald);color:#fff;font:inherit;font-weight:800;font-size:.8rem;padding:6px 12px;border-radius:8px;cursor:pointer}
 .toast.out{opacity:0;transform:translateY(8px);transition:all .25s}
 
+#lockScreen{position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;padding:24px;background:linear-gradient(160deg,var(--bg1),var(--bg2) 50%,var(--bg3))}
+#lockScreen[hidden]{display:none}
+#lockCard{width:100%;max-width:340px;text-align:center;background:var(--card-solid);color:var(--text);border:1px solid var(--border);border-radius:22px;padding:28px 24px;box-shadow:0 20px 50px rgba(0,0,0,.18)}
+#lockCard img{width:96px;height:96px;object-fit:contain}
+#lockCard h2{margin:8px 0 4px}
+#lockCard p{margin:0 0 16px;color:var(--muted)}
+#lockCard .btn{width:100%;margin-top:12px}
+#lsPin{width:100%;box-sizing:border-box;display:block}
+body.app-locked .wrap{visibility:hidden}
 .pin-input{text-align:center;letter-spacing:.7em;font-size:1.6rem!important;font-weight:800}
 .shake{animation:shake .35s}
 @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
@@ -328,12 +337,22 @@ textarea{resize:vertical;min-height:80px;line-height:1.5}
         <button class="btn btn-ghost btn-sm" data-action="export">Export Data (.JSON)</button>
         <button class="btn btn-ghost btn-sm" data-action="import">Import Data</button>
       </div>
-      <span class="muted">My Life Hub v1.0 · Data saved on this device</span>
+      <span class="muted">My Life Hub v1.1 · Synced with Google Sheet · PIN protected</span>
     </div>
   </footer>
 </div>
 
 <input type="file" id="importFile" accept="application/json,.json" class="sr-only">
+<div id="lockScreen" role="dialog" aria-modal="true" aria-label="Enter PIN">
+  <div id="lockCard">
+    <img alt="" data-id="360" data-name="Wynaut" data-color="#38BDF8">
+    <h2>🔒 My Life Hub</h2>
+    <p>Enter your PIN to open.</p>
+    <input type="password" id="lsPin" class="pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" aria-label="PIN">
+    <div class="err" id="lsErr"></div>
+    <button class="btn btn-primary" id="lsOk" type="button">Unlock</button>
+  </div>
+</div>
 <div class="overlay" id="overlay" role="dialog" aria-modal="true"><div class="modal" id="modal"></div></div>
 <div class="toasts" id="toasts" aria-live="polite"></div>
 
@@ -369,7 +388,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbzH6QCkdb1SPd8PxfXAMvSK
 const SYNC_KEY = 'lifehub_sync_v1';
 const TOKEN_KEY = 'lifehub_token';
 const POLL_MS = 15000;
-const UNLOCK_MS = 30 * 60 * 1000;
+const UNLOCK_MS = 12 * 60 * 60 * 1000;
 const EDIT_ACTIONS = new Set(['status','edit-task','del-task','qadha-minus','qadha-plus','qadha-edit','qadha-set-all','undo','import','edit-quran','del-quran','edit-dars','del-dars','edit-personal','del-personal']);
 
 /* ================= HELPERS ================= */
@@ -541,7 +560,7 @@ async function sha256(t){
 function renderLock(){
   const u = isUnlocked(), b = $('#lockBtn');
   b.textContent = u ? '🔓' : '🔒';
-  b.title = u ? 'Editing unlocked. Tap to lock' : 'View only. Tap to unlock';
+  b.title = u ? 'Lock app now' : 'Tap to unlock';
   b.setAttribute('aria-label', b.title);
   document.body.classList.toggle('locked', !u);
 }
@@ -549,7 +568,7 @@ function requirePin(onOk){
   if (isUnlocked()) { if (onOk) onOk(); return; }
   openModal(`
     <h3>🔒 Enter PIN</h3>
-    <p class="desc">Enter your 4-digit PIN to make changes.</p>
+    <p class="desc">Enter your 4-digit PIN to continue.</p>
     <input type="password" id="pinInput" class="pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" aria-label="PIN">
     <div class="err" id="pinErr"></div>
     <div class="actions">
@@ -574,7 +593,7 @@ function requirePin(onOk){
         busy = false;
         if (ok) {
           Sync.setPin(pin);
-          pinFails = 0; setUnlocked(true); closeModal(); toast('🔓 Unlocked for 30 minutes');
+          pinFails = 0; setUnlocked(true); closeModal(); toast('🔓 Unlocked');
           if (onOk) onOk();
           Sync.flush();
         } else {
@@ -591,8 +610,7 @@ function requirePin(onOk){
     });
 }
 $('#lockBtn').onclick = () => {
-  if (isUnlocked()) { setUnlocked(false); toast('🔒 Locked. View only'); }
-  else requirePin();
+  lockApp();
 };
 
 /* ================= CLOUD SYNC ================= */
@@ -690,8 +708,15 @@ const Sync = (() => {
     } catch { setStatus(navigator.onLine ? 'error' : 'offline'); }
     finally { inflight = false; renderBadge(); }
   }
+  async function fetchAll(){
+    let t = await getToken();
+    if (!t) return { ok:false, code:'AUTH' };
+    let r = await api.post({ action:'getAll', token:t });
+    if (r && r.code === 'AUTH') { clearToken(); t = await getToken(); if (!t) return r; r = await api.post({ action:'getAll', token:t }); }
+    return r;
+  }
   async function pull(force){
-    if (inflight || !meta.base) return;
+    if (inflight || !meta.base || !appOpen) return;
     if (meta.queue.length) return flush();
     if (!navigator.onLine) { setStatus('offline'); return; }
     inflight = true;
@@ -699,7 +724,8 @@ const Sync = (() => {
       const r = await api.get('rev');
       if (!r || !r.ok) { setStatus('error'); return; }
       if (force || deferred || r.rev !== meta.rev) {
-        const all = await api.get('getAll');
+        const all = await fetchAll();
+        if (all && all.code === 'AUTH') { setStatus('pending'); return; }
         if (!all || !all.ok) { setStatus('error'); return; }
         if (meta.queue.length) { setTimeout(flush, 30); return; }
         if (applyServer(all.data)) { meta.rev = all.rev; persist(); }
@@ -722,7 +748,8 @@ const Sync = (() => {
     if (!API_URL) { setStatus('local'); return; }
     if (meta.base) { setStatus(meta.queue.length ? 'busy' : 'ok'); startLoop(); await flush(); await pull(true); return; }
     let all;
-    try { setStatus('busy'); all = await api.get('getAll'); } catch { setStatus('offline'); setTimeout(init, POLL_MS); return; }
+    try { setStatus('busy'); all = await fetchAll(); } catch { setStatus('offline'); setTimeout(init, POLL_MS); return; }
+    if (all && all.code === 'AUTH') { setStatus('pending'); return; }
     if (!all || !all.ok) { setStatus('error'); setTimeout(init, 30000); return; }
     const server = normalize({ ...all.data, settings: state.settings });
     meta.rev = all.rev;
@@ -1530,15 +1557,76 @@ window.addEventListener('storage', e => {
 // Refresh greeting & "today" every minute
 setInterval(renderHero, 60000);
 
+/* ================= APP LOCK (PIN to view) ================= */
+const IDLE_MS = 20 * 60 * 1000;  // lock again after 20 minutes without activity
+let appOpen = false, lastActive = Date.now();
+function showLockScreen(){
+  appOpen = false;
+  document.body.classList.add('app-locked');
+  $('#section').innerHTML = '';
+  const ls = $('#lockScreen'), inp = $('#lsPin'), err = $('#lsErr');
+  ls.hidden = false; inp.value = ''; err.textContent = '';
+  setTimeout(() => inp.focus(), 50);
+}
+function openApp(){
+  appOpen = true; lastActive = Date.now();
+  $('#lockScreen').hidden = true;
+  document.body.classList.remove('app-locked');
+  renderLock(); renderHero(); renderTabs(); mountSection();
+  Sync.init();
+}
+function lockApp(){
+  setUnlocked(false);
+  closeModal();
+  showLockScreen();
+}
+(function setupLockScreen(){
+  const inp = $('#lsPin'), err = $('#lsErr');
+  const img = $('#lockScreen img'); if (img) { img.src = SPRITE(360); attachSpriteFallback(img); }
+  let busy = false;
+  const check = async () => {
+    if (busy) return;
+    const now = Date.now();
+    if (now < pinBlockedUntil) { err.textContent = `Too many attempts. Try again in ${Math.ceil((pinBlockedUntil - now) / 1000)}s.`; inp.value = ''; return; }
+    if (!/^\d{4}$/.test(inp.value)) { err.textContent = 'PIN must be 4 digits.'; return; }
+    busy = true;
+    const pin = inp.value;
+    let res = null;
+    if (API_URL && navigator.onLine) { err.textContent = 'Checking…'; try { res = await api.post({ action:'auth', pin }); } catch { res = null; } }
+    if (res && res.code === 'LOCKED') { busy = false; inp.value = ''; err.textContent = res.msg || 'Too many attempts. Try again later.'; return; }
+    let ok;
+    if (res) { ok = !!res.ok; if (ok) saveToken(res.token); }
+    else ok = (await sha256(pin)) === PIN_HASH;
+    busy = false;
+    if (ok) {
+      pinFails = 0; err.textContent = '';
+      Sync.setPin(pin); setUnlocked(true);
+      openApp();
+    } else {
+      pinFails++; inp.value = '';
+      if (pinFails >= 5) { pinFails = 0; pinBlockedUntil = Date.now() + 30000; err.textContent = 'Too many attempts. Try again in 30s.'; }
+      else err.textContent = 'Wrong PIN. Try again.';
+      const card = $('#lockCard'); card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake');
+    }
+  };
+  inp.addEventListener('input', () => { inp.value = inp.value.replace(/\D/g, '').slice(0, 4); if (inp.value.length === 4) check(); });
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') check(); });
+  $('#lsOk').onclick = check;
+  const idleCheck = () => { if (appOpen && Date.now() - lastActive > IDLE_MS) lockApp(); };
+  ['pointerdown','keydown','touchstart','wheel','scroll'].forEach(ev =>
+    window.addEventListener(ev, () => { if (appOpen && Date.now() - lastActive <= IDLE_MS) lastActive = Date.now(); }, { passive:true, capture:true }));
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') idleCheck(); });
+  window.addEventListener('focus', idleCheck);
+  setInterval(idleCheck, 15000);
+})();
+
 /* ================= INIT ================= */
 applyTheme();
 renderLock();
 setInterval(renderLock, 30000);
 renderTeam();
-renderHero();
-renderTabs();
-mountSection();
-Sync.init();
+try { sessionStorage.removeItem(UNLOCK_KEY); clearToken(); } catch {}
+showLockScreen();
 })();
 </script>
 </body>
