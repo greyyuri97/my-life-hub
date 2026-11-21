@@ -119,7 +119,7 @@ body{
 
 /* Forms */
 label.lbl{display:block;font-size:.72rem;font-weight:700;letter-spacing:.08em;color:var(--muted);margin-bottom:6px;text-transform:uppercase}
-input[type=text],input[type=date],input[type=number],textarea{width:100%;font:inherit;font-size:1rem;color:var(--text);
+input[type=text],input[type=date],input[type=number],input[type=search],textarea{width:100%;font:inherit;font-size:1rem;color:var(--text);
   background:var(--input);border:1.5px solid var(--border);border-radius:12px;padding:11px 14px;outline:none;transition:border .2s,box-shadow .2s}
 input:focus,textarea:focus{border-color:var(--emerald);box-shadow:0 0 0 4px var(--emerald-soft)}
 [data-theme="dark"] input{color-scheme:dark}
@@ -266,6 +266,14 @@ textarea{resize:vertical;min-height:80px;line-height:1.5}
 .dars-grid{display:grid;grid-template-columns:200px 130px 1fr;gap:12px;align-items:end}
 .dars-grid .ds-full{grid-column:1/-1}
 .task.d-entry{border-left-color:#8B5CF6}
+.task.r-entry{border-left-color:#F97316}
+.r-chip{display:inline-block;font-size:.72rem;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--amber-soft);color:#C2410C;margin-left:4px}
+.r-tags{display:flex;flex-wrap:wrap;gap:8px}
+.r-tag input{position:absolute;opacity:0;pointer-events:none}
+.r-tag span{display:inline-block;padding:7px 14px;border-radius:999px;border:1px solid var(--border);background:var(--input);font-weight:600;font-size:.9rem;cursor:pointer}
+.r-tag input:checked+span{background:#F97316;border-color:#F97316;color:#fff}
+.r-tag input:focus-visible+span{outline:2px solid #F97316;outline-offset:2px}
+.r-search input{width:100%;box-sizing:border-box}
 .task.p-entry{border-left-color:#EC4899}
 .p-note{white-space:pre-wrap;word-break:break-word;line-height:1.55}
 .d-note{font-size:.9rem;color:var(--muted);margin-top:4px;white-space:pre-wrap;word-break:break-word}
@@ -390,7 +398,7 @@ const SYNC_KEY = 'lifehub_sync_v1';
 const TOKEN_KEY = 'lifehub_token';
 const POLL_MS = 15000;
 const UNLOCK_MS = 12 * 60 * 60 * 1000;
-const EDIT_ACTIONS = new Set(['status','edit-task','del-task','qadha-minus','qadha-plus','qadha-edit','qadha-set-all','undo','import','edit-quran','del-quran','edit-dars','del-dars','edit-personal','del-personal']);
+const EDIT_ACTIONS = new Set(['status','edit-task','del-task','qadha-minus','qadha-plus','qadha-edit','qadha-set-all','undo','import','edit-quran','del-quran','edit-dars','del-dars','edit-personal','del-personal','edit-recipe','del-recipe']);
 
 /* ================= HELPERS ================= */
 const $ = s => document.querySelector(s);
@@ -415,6 +423,7 @@ function defaultState(){
     quran: [],
     dars: [],
     personal: [],
+    recipes: [],
     qadha,
     history: [],
     settings: { theme: matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light', tab:'tasks', filter:'all', qadhaSetupDone:false }
@@ -460,6 +469,16 @@ function normalize(raw){
       id: d.id ? String(d.id) : uid(),
       date: validDate(d.date) ? d.date : todayStr(),
       note: String(d.note ?? '').slice(0, 3000),
+      createdAt: Number(d.createdAt) || Date.now(),
+      updatedAt: Number(d.updatedAt) || 0
+    }));
+  }
+  if (Array.isArray(raw.recipes)) {
+    s.recipes = raw.recipes.filter(d => d && typeof d === 'object').map(d => ({
+      id: d.id ? String(d.id) : uid(),
+      date: validDate(d.date) ? d.date : todayStr(),
+      tag: ['ayam','daging','ikan','dessert','lain-lain'].includes(d.tag) ? d.tag : 'lain-lain',
+      text: String(d.text ?? '').slice(0, 10000),
       createdAt: Number(d.createdAt) || Date.now(),
       updatedAt: Number(d.updatedAt) || 0
     }));
@@ -635,7 +654,7 @@ const Sync = (() => {
     return { base:null, queue:[], rev:0 };
   }
   function persist(){ try { localStorage.setItem(SYNC_KEY, JSON.stringify(meta)); } catch {} }
-  const dataOf = st => clone({ tasks:st.tasks, quran:st.quran, dars:st.dars, personal:st.personal, qadha:st.qadha, history:st.history });
+  const dataOf = st => clone({ tasks:st.tasks, quran:st.quran, dars:st.dars, personal:st.personal, recipes:st.recipes, qadha:st.qadha, history:st.history });
   const recKey = r => { const { updatedAt, ...rest } = r; return JSON.stringify(rest); };
   function setStatus(x){ status = x; renderBadge(); }
   function renderBadge(){
@@ -650,7 +669,7 @@ const Sync = (() => {
   function capture(){
     if (!meta.base) return;
     const now = Date.now(), ops = [];
-    ['tasks','quran','dars','personal'].forEach(t => {
+    ['tasks','quran','dars','personal','recipes'].forEach(t => {
       const bm = new Map((meta.base[t] || []).map(r => [r.id, r]));
       state[t].forEach(r => {
         const b = bm.get(r.id);
@@ -743,7 +762,7 @@ const Sync = (() => {
     window.addEventListener('online', tick);
     window.addEventListener('offline', () => setStatus('offline'));
   }
-  const hasData = st => st.tasks.length || st.quran.length || st.dars.length || st.personal.length || st.history.length || PRAYERS.some(p => st.qadha[p.id].initial > 0 || st.qadha[p.id].remaining > 0);
+  const hasData = st => st.tasks.length || st.quran.length || st.dars.length || st.personal.length || st.recipes.length || st.history.length || PRAYERS.some(p => st.qadha[p.id].initial > 0 || st.qadha[p.id].remaining > 0);
   async function init(){
     renderBadge();
     if (!API_URL) { setStatus('local'); return; }
@@ -766,7 +785,7 @@ const Sync = (() => {
     const l = state, qTotal = PRAYERS.reduce((a,p) => a + l.qadha[p.id].remaining, 0);
     openModal(`
       <h3>📤 Sync this device's data?</h3>
-      <p class="desc">This device has data saved only here: <b>${l.tasks.length}</b> tasks, <b>${l.quran.length}</b> Quran entries, <b>${l.dars.length}</b> dars, <b>${l.personal.length}</b> notes, qadha remaining <b>${qTotal}</b>${l.history.length ? ` and ${l.history.length} undo steps` : ''}.<br><br>Upload it so it appears on all your devices? It will be combined with anything already in the cloud.</p>
+      <p class="desc">This device has data saved only here: <b>${l.tasks.length}</b> tasks, <b>${l.quran.length}</b> Quran entries, <b>${l.dars.length}</b> dars, <b>${l.personal.length}</b> notes, <b>${l.recipes.length}</b> recipes, qadha remaining <b>${qTotal}</b>${l.history.length ? ` and ${l.history.length} undo steps` : ''}.<br><br>Upload it so it appears on all your devices? It will be combined with anything already in the cloud.</p>
       <div class="actions">
         <button class="btn btn-ghost" data-m="later">Not now</button>
         <button class="btn btn-primary" data-m="up">📤 Upload &amp; sync</button>
@@ -777,7 +796,7 @@ const Sync = (() => {
   }
   function upload(server){
     const merged = clone(server);
-    ['tasks','quran','dars','personal'].forEach(t => {
+    ['tasks','quran','dars','personal','recipes'].forEach(t => {
       const ids = new Set(merged[t].map(r => r.id));
       state[t].forEach(r => { if (!ids.has(r.id)) merged[t].push(clone(r)); });
     });
@@ -1456,9 +1475,116 @@ async function deletePersonal(id){
   toast('🗑️ Note deleted', { label:'Undo', onClick(){ state.personal.splice(Math.min(idx, state.personal.length), 0, x); save(); refresh(); } });
 }
 
+/* ================= MODULE: RESEPI ================= */
+const RECIPE_TAGS = ['ayam','daging','ikan','dessert','lain-lain'];
+let recipeQuery = '', recipeTag = 'all';
+const tagPicker = (name, cur) => `<div class="r-tags" role="radiogroup">${RECIPE_TAGS.map(t => `<label class="r-tag"><input type="radio" name="${name}" value="${t}" ${t===cur?'checked':''}><span>#${t}</span></label>`).join('')}</div>`;
+const RecipeModule = {
+  id:'recipes', label:'Resepi', icon:'🍳',
+  mount(el){
+    const t = todayStr();
+    el.innerHTML = `
+      <div class="section-title">
+        <div><h2>🍳 Resepi</h2><p>Simpan resepi anda, newest first.</p></div>
+      </div>
+      <form id="recipeForm" class="dars-grid" autocomplete="off">
+        <div><label class="lbl" for="rcDate">Date</label><input type="date" id="rcDate" value="${t}" required></div>
+        <div><label class="lbl">Day</label><div class="day-chip" id="rcDay">${dayName(t)}</div></div>
+        <div class="ds-full"><label class="lbl">Category</label>${tagPicker('rcTag', 'ayam')}</div>
+        <div class="ds-full"><label class="lbl" for="rcText">Recipe</label><textarea id="rcText" rows="6" placeholder="Nama resepi, bahan-bahan, cara memasak..." maxlength="10000"></textarea></div>
+        <div class="ds-full" style="text-align:right"><button class="btn btn-primary" type="submit">＋ Add</button></div>
+      </form>
+      <div class="r-search" style="margin-top:18px"><input type="search" id="rcSearch" placeholder="🔍 Search recipes..." value="${esc(recipeQuery)}" aria-label="Search recipes"></div>
+      <div class="filters" id="rcFilters" style="margin-top:10px"></div>
+      <div class="task-list" id="recipeList" style="margin-top:12px"></div>`;
+    const dateEl = el.querySelector('#rcDate');
+    dateEl.addEventListener('input', () => { el.querySelector('#rcDay').textContent = dayName(dateEl.value); });
+    el.querySelector('#rcSearch').addEventListener('input', e => { recipeQuery = e.target.value; this.update(); });
+    el.querySelector('#recipeForm').addEventListener('submit', e => {
+      e.preventDefault();
+      requirePin(() => {
+        const date = dateEl.value;
+        const text = el.querySelector('#rcText').value.trim();
+        const tag = (el.querySelector('input[name=rcTag]:checked') || {}).value || 'lain-lain';
+        if (!validDate(date)) { toast('Please pick a valid date.'); return; }
+        if (!text) { toast('Please write the recipe first.'); el.querySelector('#rcText').focus(); return; }
+        state.recipes.push({ id:uid(), date, tag, text, createdAt:Date.now() });
+        save();
+        el.querySelector('#rcText').value = '';
+        refresh();
+        toast('🍳 Recipe saved');
+      });
+    });
+    this.update();
+  },
+  update(){
+    const list = $('#recipeList'), fl = $('#rcFilters');
+    if (!list) return;
+    const count = t => state.recipes.filter(r => t === 'all' || r.tag === t).length;
+    fl.innerHTML = ['all', ...RECIPE_TAGS].map(t => `<button type="button" class="filter ${recipeTag===t?'active':''}" data-rtag="${t}">${t==='all'?'All':'#'+t} <span class="n">${count(t)}</span></button>`).join('');
+    fl.querySelectorAll('[data-rtag]').forEach(b => b.onclick = () => { recipeTag = b.dataset.rtag; this.update(); });
+    const q = recipeQuery.trim().toLowerCase();
+    const rows = state.recipes
+      .filter(r => (recipeTag === 'all' || r.tag === recipeTag) && (!q || r.text.toLowerCase().includes(q) || ('#'+r.tag).includes(q)))
+      .sort((a,b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
+    if (!rows.length) {
+      list.innerHTML = `<div class="empty"><img src="${SPRITE(360)}" alt="" data-id="360" data-name="Wynaut" data-color="#38BDF8"><p>${state.recipes.length ? 'No recipes match.' : 'No recipes yet.'}</p></div>`;
+      const img = list.querySelector('img'); if (img) attachSpriteFallback(img);
+      return;
+    }
+    list.innerHTML = rows.map(x => `
+      <div class="task r-entry">
+        <div>
+          <div class="task-meta">${dayName(x.date)} · ${fmtDate(x.date)} <span class="r-chip">#${esc(x.tag)}</span></div>
+          <div class="p-note">${esc(x.text)}</div>
+        </div>
+        <div class="task-actions">
+          <button class="btn btn-icon" data-action="edit-recipe" data-id="${x.id}" aria-label="Edit" title="Edit">✏️</button>
+          <button class="btn btn-icon del" data-action="del-recipe" data-id="${x.id}" aria-label="Delete" title="Delete">🗑️</button>
+        </div>
+      </div>`).join('');
+  }
+};
+function editRecipe(id){
+  const x = state.recipes.find(d => d.id === id); if (!x) return;
+  openModal(`
+    <h3>✏️ Edit Recipe</h3>
+    <div class="field" style="display:grid;grid-template-columns:1fr 120px;gap:10px;align-items:end">
+      <div><label class="lbl" for="reDate">Date</label><input type="date" id="reDate" value="${x.date}"></div>
+      <div><label class="lbl">Day</label><div class="day-chip" id="reDay">${dayName(x.date)}</div></div>
+    </div>
+    <div class="field"><label class="lbl">Category</label>${tagPicker('reTag', x.tag)}</div>
+    <div class="field"><label class="lbl" for="reText">Recipe</label><textarea id="reText" rows="10" maxlength="10000">${esc(x.text)}</textarea></div>
+    <div class="err" id="reErr"></div>
+    <div class="actions">
+      <button class="btn btn-ghost" data-m="cancel">Cancel</button>
+      <button class="btn btn-primary" data-m="save">Save</button>
+    </div>`, m => {
+      const d = m.querySelector('#reDate');
+      d.addEventListener('input', () => m.querySelector('#reDay').textContent = dayName(d.value));
+      m.querySelector('[data-m=cancel]').onclick = closeModal;
+      m.querySelector('[data-m=save]').onclick = () => {
+        const text = m.querySelector('#reText').value.trim();
+        const tag = (m.querySelector('input[name=reTag]:checked') || {}).value || x.tag;
+        if (!validDate(d.value)) { m.querySelector('#reErr').textContent = 'Invalid date.'; return; }
+        if (!text) { m.querySelector('#reErr').textContent = 'Recipe cannot be empty.'; return; }
+        Object.assign(x, { date:d.value, tag, text });
+        save(); closeModal(); refresh(); toast('💾 Recipe updated');
+      };
+    });
+}
+async function deleteRecipe(id){
+  const x = state.recipes.find(d => d.id === id); if (!x) return;
+  const ok = await confirmDialog({ title:'Delete recipe?', message:`This #${x.tag} recipe from ${fmtDate(x.date)} will be permanently deleted.`, okLabel:'Delete', danger:true });
+  if (!ok) return;
+  const idx = state.recipes.indexOf(x);
+  state.recipes.splice(idx, 1); save(); refresh();
+  toast('🗑️ Recipe deleted', { label:'Undo', onClick(){ state.recipes.splice(Math.min(idx, state.recipes.length), 0, x); save(); refresh(); } });
+}
+
 /* ================= MODULE REGISTRY ================= */
 // To add a new section later: create an object with { id, label, icon, mount(el), update() } and push it here.
-const MODULES = [TaskModule, QuranModule, DarsModule, QadhaModule, PersonalModule];
+const MODULES = [TaskModule, QuranModule, DarsModule, QadhaModule, PersonalModule, RecipeModule];
 const COMING_SOON = ['Finance', 'Reading'];
 
 function currentModule(){ return MODULES.find(m => m.id === state.settings.tab) || MODULES[0]; }
@@ -1487,7 +1613,7 @@ $('#importFile').addEventListener('change', async e => {
   let raw;
   try { raw = JSON.parse(await file.text()); }
   catch { toast('⚠️ Invalid file (not JSON).'); return; }
-  if (!raw || (!Array.isArray(raw.tasks) && !Array.isArray(raw.quran) && !Array.isArray(raw.dars) && !Array.isArray(raw.personal) && !raw.qadha)) { toast("⚠️ This file isn't a My Life Hub backup."); return; }
+  if (!raw || (!Array.isArray(raw.tasks) && !Array.isArray(raw.quran) && !Array.isArray(raw.dars) && !Array.isArray(raw.personal) && !Array.isArray(raw.recipes) && !raw.qadha)) { toast("⚠️ This file isn't a My Life Hub backup."); return; }
   const n = Array.isArray(raw.tasks) ? raw.tasks.length : 0;
   const ok = await confirmDialog({ title:'Import data?', message:`Your current data will be replaced with this backup (${n} tasks). Continue?`, okLabel:'Import', danger:true });
   if (!ok) return;
@@ -1541,6 +1667,8 @@ document.addEventListener('click', e => {
     case 'del-dars': deleteDars(el.dataset.id); break;
     case 'edit-personal': editPersonal(el.dataset.id); break;
     case 'del-personal': deletePersonal(el.dataset.id); break;
+    case 'edit-recipe': editRecipe(el.dataset.id); break;
+    case 'del-recipe': deleteRecipe(el.dataset.id); break;
     case 'qadha-minus': qadhaMinus(el.dataset.p); break;
     case 'qadha-plus': qadhaPlus(el.dataset.p); break;
     case 'qadha-edit': openQadhaSetup([el.dataset.p], false); break;
