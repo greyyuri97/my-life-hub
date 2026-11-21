@@ -260,6 +260,7 @@ body.app-locked .wrap{visibility:hidden}
 .shake{animation:shake .35s}
 @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
 .task.q-entry{border-left-color:var(--blue)}
+.t-remark{white-space:pre-wrap;line-height:1.5}
 .q-remark{font-size:.88rem;color:var(--muted);margin-top:2px;word-break:break-word}
 textarea{resize:vertical;min-height:80px;line-height:1.5}
 .dars-grid{display:grid;grid-template-columns:200px 130px 1fr;gap:12px;align-items:end}
@@ -428,7 +429,7 @@ function normalize(raw){
       id: t.id ? String(t.id) : uid(),
       date: validDate(t.date) ? t.date : todayStr(),
       item: String(t.item ?? '').slice(0, 500),
-      remark: String(t.remark ?? '').slice(0, 500),
+      remark: String(t.remark ?? '').slice(0, 3000),
       status: ['pending','done','fail'].includes(t.status) ? t.status : 'pending',
       createdAt: Number(t.createdAt) || Date.now(),
       updatedAt: Number(t.updatedAt) || 0
@@ -862,7 +863,7 @@ const TaskModule = {
         <div><label class="lbl" for="taskDate">Date</label><input type="date" id="taskDate" value="${t}" required></div>
         <div><label class="lbl">Day</label><div class="day-chip" id="taskDay">${dayName(t)}</div></div>
         <div class="ds-event"><label class="lbl" for="taskItem">Item</label><input type="text" id="taskItem" placeholder="What do you need to do today?" maxlength="500"></div>
-        <div class="ds-full"><label class="lbl" for="taskRemark">Remark</label><input type="text" id="taskRemark" placeholder="Optional, e.g. bring receipt, call before 3pm" maxlength="500"></div>
+        <div class="ds-full"><label class="lbl" for="taskRemark">Remark</label><textarea id="taskRemark" rows="3" placeholder="Optional, e.g. bring receipt, call before 3pm" maxlength="3000"></textarea></div>
         <div class="ds-full" style="text-align:right"><button class="btn btn-primary" type="submit">＋ Add</button></div>
       </form>
       <div class="filters" id="filters"></div>
@@ -922,7 +923,7 @@ const TaskModule = {
           <div>
             <div class="task-meta">${dayName(x.date)} · ${fmtDate(x.date)} ${x.date===t?'<span class="today-tag">TODAY</span>':''}</div>
             <div class="task-text">${esc(x.item)}</div>
-            ${x.remark ? `<div class="q-remark">💬 ${esc(x.remark)}</div>` : ''}
+            ${x.remark ? `<div class="q-remark t-remark">💬 ${esc(x.remark)}</div>` : ''}
           </div>
           <span class="badge ${bc}">${bl}</span>
           <div class="task-actions">
@@ -960,7 +961,7 @@ function editTask(id){
       <div><label class="lbl">Day</label><div class="day-chip" id="eDay">${dayName(t.date)}</div></div>
     </div>
     <div class="field"><label class="lbl" for="eItem">Item</label><input type="text" id="eItem" value="${esc(t.item)}" maxlength="500"></div>
-    <div class="field"><label class="lbl" for="eRemark">Remark</label><input type="text" id="eRemark" value="${esc(t.remark)}" maxlength="500" placeholder="Optional"></div>
+    <div class="field"><label class="lbl" for="eRemark">Remark</label><textarea id="eRemark" rows="5" maxlength="3000" placeholder="Optional">${esc(t.remark)}</textarea></div>
     <div class="field"><label class="lbl">Status</label>
       <div style="display:flex;gap:6px;flex-wrap:wrap" id="eStatus">
         ${[['pending','Pending'],['done','Done'],['fail','Unsuccessful']].map(([k,l]) =>
