@@ -6,7 +6,7 @@ Read this first. It tells you what this project is, how it is built, the rules f
 
 **My Life Hub** is a personal, single-user life-tracking web app (English UI, Pokémon Gen 3 / Hoenn theme).
 
-- **Live site:** https://netflixhafiz97.github.io/life-hub/ (GitHub Pages, repo `netflixhafiz97/life-hub`)
+- **Live site:** https://greyyuri97.github.io/my-life-hub/ (GitHub Pages, repo `greyyuri97/my-life-hub`). Old site netflixhafiz97.github.io/life-hub is retired.
 - **Owner:** one user who opens it on a phone and a laptop. Data must be the same on every device.
 - **Access:** a PIN lock screen appears every time the app opens. The app re-locks after 20 minutes without activity. The PIN is kept server-side; it is **not** written in this file.
 
@@ -143,11 +143,9 @@ clasp push
 **Known issues and limitations**
 1. The localStorage cache holds the full data set on each device. The lock screen hides it, but someone with the device and DevTools can read it.
 2. Offline unlock uses `PIN_HASH`. A 4-digit PIN hash can be brute-forced by anyone who reads the source. The online path is rate-limited by the server (5 tries, then a 5-minute lock).
-3. The Settings dialog still says "All data is stored in this device's browser (localStorage)". This is out of date; it should say the data syncs to Google Sheet.
-4. The "＋ Coming soon" tab is a disabled placeholder.
-5. `Code.gs → setup()` writes a default PIN into the Settings tab. Treat Code.gs as private, or change that default.
-6. The Apps Script deployment description shows "Untitled". This is cosmetic.
-7. There is no CI. Tests are run by hand.
+3. `Code.gs` in the live Apps Script may still have the old `setup()` that writes a default PIN; the local copy is fixed. Paste it in when convenient.
+4. The Apps Script deployment description shows "Untitled". This is cosmetic.
+5. There is no CI. Tests are run by hand.
 
 ## 7. File map
 

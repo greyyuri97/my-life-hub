@@ -2,20 +2,15 @@
 
 Copy one item at a time into Claude Code. Each item names the files it touches.
 
-## A. Setup on the new computer (do first)
+## A + B. Setup and small fixes: DONE (27 Nov 2026)
 
-- [ ] Clone the site repo: `git clone https://github.com/netflixhafiz97/life-hub.git` and copy this package (CLAUDE.md, docs/, tests/, apps-script/) into it. **Don't commit `apps-script/Code.gs`** if the repo stays public (it has a default PIN in `setup()`); add `apps-script/` to `.gitignore`, or keep it in a private repo.
-- [ ] Check that the local `index.html` matches the live site: `sha256sum index.html` should start with `652c995f82d32779`.
-- [ ] Fill in a local `.env` from `.env.example` (Sheet ID, Script ID, Deployment ID).
-- [ ] Optional: set up clasp (`npm i -g @google/clasp`, `clasp login`, `apps-script/.clasp.json`), then run `clasp pull` to confirm the live Code.gs matches this copy.
-- [ ] Run `python tests/smoke_test.py`. It should end with "ALL SMOKE TESTS PASSED".
-
-## B. Small fixes (low risk)
-
-- [ ] **Settings text:** in index.html, change "All data is stored in this device's browser (localStorage)…" to say the data syncs to Google Sheet, and that Export is an extra backup.
-- [ ] **Coming soon tab:** remove it, or keep it updated with planned sections.
-- [ ] **Code.gs `setup()`:** stop writing a default PIN. Throw a message asking the owner to set `Settings!pin` by hand instead.
-- [ ] Give the Apps Script deployment a description (for example "v6 TASK DH") the next time it is redeployed.
+- [x] Moved to repo `greyyuri97/my-life-hub`; live at https://greyyuri97.github.io/my-life-hub/
+- [x] Smoke test passes (reads APP_PIN from local .env)
+- [x] Settings text now says data syncs to Google Sheet
+- [x] "Coming soon" tab removed
+- [x] Local `apps-script/Code.gs`: `setup()` no longer writes a default PIN (paste into Apps Script when convenient)
+- [ ] Give the Apps Script deployment a description at the next redeploy
+- [ ] Turn off Pages on the old repo `netflixhafiz97/life-hub` (log in as that account)
 
 ## C. Possible improvements (confirm with the owner before building)
 
