@@ -1,0 +1,9 @@
+.env
+.clasp.json
+node_modules/
+__pycache__/
+*.png
+.DS_Store
+# Back-end source holds the default PIN in setup(); keep it out of the public site repo
+apps-script/
+MASTER_PROMPT.md

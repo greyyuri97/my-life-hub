@@ -1704,13 +1704,11 @@ async function deleteDh(id){
 /* ================= MODULE REGISTRY ================= */
 // To add a new section later: create an object with { id, label, icon, mount(el), update() } and push it here.
 const MODULES = [TaskModule, QuranModule, DarsModule, QadhaModule, PersonalModule, RecipeModule, DhModule];
-const COMING_SOON = ['Finance', 'Reading'];
 
 function currentModule(){ return MODULES.find(m => m.id === state.settings.tab) || MODULES[0]; }
 function renderTabs(){
   $('#tabs').innerHTML = MODULES.map(m =>
-    `<button class="tab ${m.id===currentModule().id?'active':''}" role="tab" aria-selected="${m.id===currentModule().id}" data-action="tab" data-tab="${m.id}">${m.icon} ${m.label}</button>`).join('')
-    + `<button class="tab" disabled title="${COMING_SOON.join(', ')}">＋ Coming soon</button>`;
+    `<button class="tab ${m.id===currentModule().id?'active':''}" role="tab" aria-selected="${m.id===currentModule().id}" data-action="tab" data-tab="${m.id}">${m.icon} ${m.label}</button>`).join('');
 }
 function mountSection(){ currentModule().mount($('#section')); }
 function refresh(){ renderHero(); currentModule().update(); }
@@ -1745,7 +1743,7 @@ $('#importFile').addEventListener('change', async e => {
 function openSettings(){
   openModal(`
     <h3>⚙️ Settings</h3>
-    <p class="desc">All data is stored in this device's browser (localStorage). Export regularly as a backup.</p>
+    <p class="desc">Your data syncs to Google Sheet and is the same on all your devices. Export is an extra backup.</p>
     <div style="display:flex;flex-direction:column;gap:10px">
       <button class="btn btn-ghost" data-m="theme">${state.settings.theme==='dark'?'☀️ Switch to Light Mode':'🌙 Switch to Dark Mode'}</button>
       <button class="btn btn-ghost" data-m="export">📦 Export Data (.JSON)</button>
